@@ -1,5 +1,6 @@
 #include "SceneFactory.hh"
 
+#include "game/CharacterSelect3D.hh"
 #include "game/SceneMapSelect.hh"
 #include "game/ScenePackSelect.hh"
 #include "game/SysDebug.hh"
@@ -36,6 +37,11 @@ Scene *SceneFactory::createScene(s32 sceneType, JKRHeap *heap) {
     SysDebug *sysDebug = SysDebug::GetManager();
     Scene *scene;
     switch (sceneType) {
+    case SceneType::Menu:
+        sysDebug->setHeapGroup("CharacterSelect3D", heap);
+        CharacterSelect3D::Create(heap);
+        sysDebug->setDefaultHeapGroup(heap);
+        return REPLACED(createScene)(sceneType, heap);
     case SceneType::MapSelect:
         sysDebug->setHeapGroup("MapSelect", heap);
         m_battleName2D = BattleName2D::Create(m_archives[ArchiveType::BattleName]);

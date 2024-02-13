@@ -4,6 +4,7 @@
 
 class JKRHeap {
 public:
+    JKRHeap *becomeCurrentHeap();
     void *alloc(u32 size, s32 align);
     void free(void *ptr);
     void freeAll();
