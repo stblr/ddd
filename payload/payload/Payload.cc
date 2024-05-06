@@ -6,6 +6,7 @@
 #include "payload/DVDStorage.hh"
 #include "payload/Lock.hh"
 #include "payload/LogFile.hh"
+#include "payload/Random.hh"
 #include "payload/VirtualCard.hh"
 #include "payload/WUP028.hh"
 #include "payload/network/DNS.hh"
@@ -102,6 +103,12 @@ void Payload::Run(Context *context) {
     INFO("Initializing DNS...");
     DNS::Init();
     INFO("Initialized DNS.");
+
+    INFO("Initializing random number generator...");
+    Random::Init();
+    INFO("Initialized random number generator...");
+
+    Clock::WaitMilliseconds(1000);
 
     Console::Instance()->setIsDirect(false);
 }
