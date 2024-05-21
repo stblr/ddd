@@ -15,12 +15,14 @@ public:
     bool ok();
 
     bool getVersion(Version &version);
+    bool getRandom(void *buffer, u32 size);
 
 private:
     class Ioctlv {
     public:
         enum {
             GetVersion = 0x2,
+            GetRandom = 0xb,
         };
 
     private:

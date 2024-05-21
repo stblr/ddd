@@ -48,6 +48,14 @@ bool Dolphin::getVersion(Version &version) {
     return true;
 }
 
+bool Dolphin::getRandom(void *buffer, u32 size) {
+    alignas(0x20) IoctlvPair pairs[1];
+    pairs[0].data = buffer;
+    pairs[0].size = size;
+
+    return ioctlv(Ioctlv::GetRandom, 0, 1, pairs) == 0;
+}
+
 bool operator<(const Dolphin::Version &a, const Dolphin::Version &b) {
     if (a.major != b.major) {
         return a.major < b.major;

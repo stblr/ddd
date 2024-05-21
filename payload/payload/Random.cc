@@ -2,6 +2,7 @@
 
 #include <common/Algorithm.hh>
 #include <common/Clock.hh>
+#include <common/Log.hh> // FIXME
 #include <common/Platform.hh>
 #include <common/storage/Storage.hh>
 extern "C" {
@@ -9,16 +10,28 @@ extern "C" {
 #include <monocypher/monocypher.h>
 
 #include <assert.h>
+#include <stdio.h> // FIXME
 #include <string.h>
 }
 
 void Random::Init() {
     assert(!s_isInit);
 
-    while (!InitWithDiscTimings()) {
-        Clock::WaitMilliseconds(100);
+    if (InitWithDolphinDevice()) {
+        s_isSecure = true;
+    } else {
+        while (!InitWithDiscTimings()) {
+            Clock::WaitMilliseconds(100);
+        }
+        s_isSecure = !Platform::IsDolphin();
     }
-    s_isSecure = !Platform::IsDolphin();
+    DEBUG("%u", s_isSecure);
+    Array<char, 256> tmp;
+    u32 offset = 0;
+    for (u32 i = 0; i < 32; i++) {
+        offset += snprintf(tmp.values() + offset, tmp.count() - offset, "%02x ", s_buffer[i]);
+    }
+    DEBUG("%s", tmp.values());
 
     s_isInit = true;
 }
@@ -46,6 +59,19 @@ void Random::Get(void *data, size_t size) {
     }
 
     crypto_wipe(s_buffer.values() + 32, s_offset - 32);
+}
+
+bool Random::InitWithDolphinDevice() {
+    Dolphin dolphin;
+    if (!dolphin.ok()) {
+        return false;
+    }
+
+    if (!dolphin.getRandom(s_buffer.values(), 32)) {
+        return false;
+    }
+
+    return true;
 }
 
 bool Random::InitWithDiscTimings() {

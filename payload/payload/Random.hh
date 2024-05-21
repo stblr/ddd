@@ -9,6 +9,7 @@ public:
     static void Get(void *data, size_t size);
 
 private:
+    static bool InitWithDolphinDevice();
     static bool InitWithDiscTimings();
 
     static bool s_isInit;
