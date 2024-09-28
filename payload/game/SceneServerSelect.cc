@@ -66,7 +66,7 @@ SceneServerSelect::SceneServerSelect(JKRArchive *archive, JKRHeap *heap) : Scene
 SceneServerSelect::~SceneServerSelect() {}
 
 void SceneServerSelect::init() {
-    if (SequenceApp::Instance()->prevScene() != SceneType::RoomTypeSelect) {
+    if (SequenceApp::Instance()->prevScene() != SceneType::CharacterSelect) {
         Client::Instance()->reset();
     }
 
@@ -158,7 +158,7 @@ void SceneServerSelect::wait() {
 
 void SceneServerSelect::slideIn() {
     m_serverCount = ServerManager::Instance()->serverCount();
-    if (SequenceApp::Instance()->prevScene() != SceneType::RoomTypeSelect) {
+    if (SequenceApp::Instance()->prevScene() != SceneType::CharacterSelect) {
         m_serverIndex = 0;
     }
     m_rowIndex = m_serverIndex;

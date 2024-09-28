@@ -97,6 +97,10 @@ Scene *SceneFactory::createScene(s32 sceneType, JKRHeap *heap) {
         sysDebug->setHeapGroup("ServerSelect", heap);
         scene = new (heap, 0x0) SceneServerSelect(m_archives[ArchiveType::GhostData], heap);
         break;
+    case SceneType::ModeSelect:
+        sysDebug->setHeapGroup("ModeSelect", heap);
+        scene = new (heap, 0x0) SceneModeSelect(m_archives[ArchiveType::GhostData], heap);
+        break;
     case SceneType::CharacterSelect:
         sysDebug->setHeapGroup("CharacterSelect", heap);
         scene = new (heap, 0x0) SceneCharacterSelect(m_archives[ArchiveType::Menu], heap);
