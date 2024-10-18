@@ -3,21 +3,11 @@
 #include "jsystem/JKRArchive.hh"
 
 #include <common/Array.hh>
-#include <payload/Replace.hh>
+#include <payload/Archive.hh>
 
 class JKRMemArchive : public JKRArchive {
 public:
-    class MemBreakFlag {
-    public:
-        enum {
-            DoNotBreak = 0,
-            Break = 1,
-        };
-
-    private:
-        MemBreakFlag();
-    };
-
+    JKRMemArchive(s32 entrynum, Archive archive, u32 mountDirection);
     JKRMemArchive(s32 entrynum, u32 mountDirection, bool patchesAllowed);
     JKRMemArchive(void *archive, u32 mountDirection, bool patchesAllowed);
     ~JKRMemArchive();
