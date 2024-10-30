@@ -4,13 +4,36 @@
 #include <payload/Replace.h>
 
 enum {
+    SO_SUCCESS = 0,
+    SO_EINVAL = -28,
+    SO_ENETRESET = -39,
+};
+
+enum {
     SO_F_GETFL = 3,
     SO_F_SETFL = 4,
 };
 
+enum {
+    SO_CONFIG_ERROR = 0x1003,
+    SO_CONFIG_MAC_ADDRESS = 0x1004,
+    SO_CONFIG_LINK_STATE = 0x1005,
+    SO_CONFIG_IP_ADDR_TABLE = 0x4003,
+};
+
 typedef struct SOConfig SOConfig;
-typedef struct SOSockAddr SOSockAddr;
-typedef struct SOPollFD SOPollFD;
+
+typedef struct {
+    u8 _0[0x8 - 0x0];
+} SOSockAddr;
+size_assert(SOSockAddr, 0x8);
+
+typedef struct {
+    s32 fd;
+    s16 events;
+    s16 revents;
+} SOPollFD;
+size_assert(SOPollFD, 0x8);
 
 void REPLACED(SOInit)(void);
 REPLACE void SOInit(void);
@@ -44,3 +67,6 @@ s32 REPLACED(SOFcntl)(s32 socket, s32 cmd, ...);
 REPLACE s32 SOFcntl(s32 socket, s32 cmd, ...);
 s32 REPLACED(SOPoll)(SOPollFD *fds, u32 nfds, s64 timeout);
 REPLACE s32 SOPoll(SOPollFD *fds, u32 nfds, s64 timeout);
+
+s32 SOGetInterfaceOpt(s32 optname, void *optval, s32 *optlen);
+s32 SOSetInterfaceOpt(s32 optname, const void *optval, s32 optlen);

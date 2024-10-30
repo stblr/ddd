@@ -222,6 +222,7 @@
 800ff9e8 __mod2i
 800ffaf4 __shl2i
 800ffb18 __shr2u
+800ffb3c __shr2i
 
 800ffe28 exit
 80102200 abs

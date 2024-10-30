@@ -10,7 +10,6 @@
 #include "payload/WUP028.hh"
 #include "payload/crypto/Random.hh"
 #include "payload/network/DNS.hh"
-#include "payload/network/Socket.hh"
 #include "payload/online/ClientK.hh"
 #include "payload/online/ServerManager.hh"
 
@@ -108,17 +107,5 @@ void Payload::Run(Context *context) {
             Clock::WaitMilliseconds(1000);
         }
         INFO("Initialized virtual disc.");
-    }
-
-    if (!Platform::IsGameCube()) {
-        INFO("Initializing sockets...");
-        Socket::Init();
-        INFO("Initialized sockets.");
-    }
-
-    if (!Platform::IsGameCube()) {
-        INFO("Initializing DNS...");
-        DNS::Init();
-        INFO("Initialized DNS.");
     }
 }
