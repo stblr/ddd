@@ -210,13 +210,13 @@ extern "C" s32 SORecvFrom(s32 socket, void *buffer, s32 length, s32 flags, SOSoc
     pairs[0].size = in.count();
     pairs[1].data = out.get() + 0x20;
     pairs[1].size = length;
-    pairs[2].data = out.get() + 0x00;
-    pairs[2].size = 0x08;
+    pairs[2].data = address ? out.get() + 0x00 : nullptr;
+    pairs[2].size = address ? sizeof(*address) : 0x0;
     s32 result = s_resource->ioctlv(Ioctlv::RecvFrom, 1, 2, pairs);
     if (result >= 0) {
         memcpy(buffer, out.get() + 0x20, length);
         if (address) {
-            memcpy(out.get() + 0x00, address, sizeof(*address));
+            memcpy(address, out.get() + 0x00, sizeof(*address));
         }
     }
     return result;

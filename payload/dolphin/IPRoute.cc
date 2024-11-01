@@ -12,7 +12,7 @@ extern "C" {
 }
 
 extern "C" void IPGetMacAddr(const IPInterface *interface, u8 macAddr[6]) {
-    DEBUG("IPGetMacAddr %p %p", interface, macAddr);
+    //DEBUG("IPGetMacAddr %p %p", interface, macAddr);
     if (Platform::IsGameCube()) {
         REPLACED(IPGetMacAddr)(interface, macAddr);
         return;
@@ -24,7 +24,7 @@ extern "C" void IPGetMacAddr(const IPInterface *interface, u8 macAddr[6]) {
 }
 
 extern "C" void IPGetNetmask(const IPInterface *interface, u8 netmask[4]) {
-    DEBUG("IPGetNetmask %p %p", interface, netmask);
+    //DEBUG("IPGetNetmask %p %p", interface, netmask);
     if (Platform::IsGameCube()) {
         REPLACED(IPGetNetmask)(interface, netmask);
         return;
@@ -38,7 +38,7 @@ extern "C" void IPGetNetmask(const IPInterface *interface, u8 netmask[4]) {
 }
 
 extern "C" void IPGetAddr(const IPInterface *interface, u8 addr[4]) {
-    DEBUG("IPGetAddr %p %p", interface, addr);
+    //DEBUG("IPGetAddr %p %p", interface, addr);
     if (Platform::IsGameCube()) {
         REPLACED(IPGetAddr)(interface, addr);
         return;
@@ -52,7 +52,7 @@ extern "C" void IPGetAddr(const IPInterface *interface, u8 addr[4]) {
 }
 
 extern "C" void IPGetAlias(const IPInterface *interface, u8 alias[4]) {
-    DEBUG("IPGetAlias %p %p", interface, alias);
+    //DEBUG("IPGetAlias %p %p", interface, alias);
     if (Platform::IsGameCube()) {
         REPLACED(IPGetAlias)(interface, alias);
         return;
@@ -70,20 +70,17 @@ extern "C" void IPGetAlias(const IPInterface *interface, u8 alias[4]) {
 }
 
 extern "C" void IPGetLinkState(const IPInterface *interface, s32 *state) {
-    DEBUG("IPGetLinkState %p %p", interface, state);
+    //DEBUG("IPGetLinkState %p %p", interface, state);
     if (Platform::IsGameCube()) {
         REPLACED(IPGetLinkState)(interface, state);
         return;
     }
 
-    *state = 0;
-    s32 optlen = sizeof(*state);
-    SOGetInterfaceOpt(SO_CONFIG_LINK_STATE, state, &optlen);
-    DEBUG("%d", *state);
+    *state = 1;
 }
 
 extern "C" s32 IPGetConfigError(const IPInterface *interface) {
-    DEBUG("IPGetConfigError %p", interface);
+    //DEBUG("IPGetConfigError %p", interface);
     if (Platform::IsGameCube()) {
         return REPLACED(IPGetConfigError)(interface);
     }
