@@ -136,6 +136,7 @@
 800c4604 EXIDeselect
 800c4c98 EXILock
 800c4d8c EXIUnlock
+800c5258 EXIGetType
 800c943c IPGetMacAddr
 800c94ac IPGetNetmask
 800c951c IPGetAddr
