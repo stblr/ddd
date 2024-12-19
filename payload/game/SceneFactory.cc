@@ -4,6 +4,7 @@
 #include "game/SceneCharacterSelect.hh"
 #include "game/SceneHowManyPlayers.hh"
 #include "game/SceneMapSelect.hh"
+#include "game/SceneModeSelect.hh"
 #include "game/SceneNameSelect.hh"
 #include "game/SceneOption.hh"
 #include "game/ScenePackSelect.hh"
