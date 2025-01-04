@@ -1,11 +1,12 @@
 #pragma once
 
+#include "payload/crypto/DH.hh"
 #include "payload/crypto/Session.hh"
 #include "payload/online/ConnectionState.hh"
 
 class ConnectionStateSession : public ConnectionState {
 public:
-    ConnectionStateSession(JKRHeap *heap, Array<u8, 32> serverPK, Socket::Address address,
+    ConnectionStateSession(JKRHeap *heap, DH::PK serverPK, Socket::Address address,
             Session session);
     ~ConnectionStateSession() override;
     ConnectionState &reset() override;

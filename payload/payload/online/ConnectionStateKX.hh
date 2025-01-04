@@ -1,11 +1,12 @@
 #pragma once
 
+#include "payload/crypto/DH.hh"
 #include "payload/crypto/KX.hh"
 #include "payload/online/ConnectionState.hh"
 
 class ConnectionStateKX : public ConnectionState {
 public:
-    ConnectionStateKX(JKRHeap *heap, Array<u8, 32> serverPK, Socket::Address address);
+    ConnectionStateKX(JKRHeap *heap, DH::PK serverPK, Socket::Address address);
     ~ConnectionStateKX() override;
     ConnectionState &reset() override;
     ConnectionState &read(ServerStateReader &reader, u8 *buffer, u32 size,

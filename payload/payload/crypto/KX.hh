@@ -1,9 +1,11 @@
 #pragma once
 
+#include "payload/crypto/DH.hh"
 #include "payload/crypto/Session.hh"
 #include "payload/crypto/SymmetricState.hh"
 
 #include <common/Array.hh>
+#include <common/Optional.hh>
 
 class KX {
 public:
@@ -14,7 +16,7 @@ public:
 
     class ClientState {
     public:
-        ClientState(const Array<u8, 32> &clientK, const Array<u8, 32> &serverPK);
+        ClientState(DH::K clientK, DH::PK serverPK);
         ~ClientState();
         bool hasM1() const;
         bool hasM2() const;
@@ -47,15 +49,15 @@ public:
         Session m_clientSession;
         State m_state;
         SymmetricState m_symmetricState;
-        Array<u8, 32> m_clientK;
-        Array<u8, 32> m_clientEphemeralK;
-        Array<u8, 32> m_serverPK;
-        Array<u8, 32> m_serverEphemeralPK;
+        Optional<DH::K> m_clientK;
+        Optional<DH::K> m_clientEphemeralK;
+        DH::PK m_serverPK;
+        DH::PK m_serverEphemeralPK;
     };
 
     class ServerState {
     public:
-        ServerState(const Array<u8, 32> &serverK);
+        ServerState(DH::K serverK);
         ~ServerState();
         bool hasM1() const;
         bool hasM2() const;
@@ -63,7 +65,7 @@ public:
         bool getM2(u8 m2[M2Size]) const;
         bool update();
         const Session *serverSession() const;
-        const Array<u8, 32> *clientPK() const;
+        const DH::PK *clientPK() const;
 
     private:
         typedef void (ServerState::*State)();
@@ -89,10 +91,10 @@ public:
         Session m_serverSession;
         State m_state;
         SymmetricState m_symmetricState;
-        Array<u8, 32> m_clientPK;
-        Array<u8, 32> m_clientEphemeralPK;
-        Array<u8, 32> m_serverK;
-        Array<u8, 32> m_serverEphemeralK;
+        DH::PK m_clientPK;
+        DH::PK m_clientEphemeralPK;
+        Optional<DH::K> m_serverK;
+        Optional<DH::K> m_serverEphemeralK;
     };
 
 private:

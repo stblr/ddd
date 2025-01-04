@@ -31,11 +31,9 @@ SymmetricState::~SymmetricState() {
     crypto_wipe(m_k.values(), m_k.count());
 }
 
-void SymmetricState::mixDH(const Array<u8, 32> &k, const Array<u8, 32> &pk) {
-    Array<u8, 32> sk;
-    crypto_x25519(sk.values(), k.values(), pk.values());
-    HKDFState hkdfState(m_ck, sk.values(), sk.count());
-    crypto_wipe(sk.values(), sk.count());
+void SymmetricState::mixDH(const DH::K &k, const DH::PK &pk) {
+    DH::SK sk(k, pk);
+    HKDFState hkdfState(m_ck, sk.m_g.values(), sk.m_g.count());
     hkdfState.update(m_ck.values(), m_ck.count());
     hkdfState.update(m_k.values(), m_k.count());
     m_nonce = 0;

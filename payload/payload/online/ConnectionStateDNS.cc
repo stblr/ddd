@@ -8,7 +8,7 @@ extern "C" {
 #include <string.h>
 }
 
-ConnectionStateDNS::ConnectionStateDNS(JKRHeap *heap, Array<u8, 32> serverPK, const char *name)
+ConnectionStateDNS::ConnectionStateDNS(JKRHeap *heap, DH::PK serverPK, const char *name)
     : ConnectionState(heap, serverPK), m_port(3549) {
     const char *port = strrchr(name, ':');
     if (port && sscanf(port, ":%hu", &m_port) == 1) {

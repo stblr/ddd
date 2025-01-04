@@ -3,15 +3,14 @@
 #ifdef __CWCC__
 #include "payload/Lock.hh"
 
-#include <common/Algorithm.hh>
 #include <common/Arena.hh>
+#include <common/Array.hh>
 #include <common/Clock.hh>
 #include <common/ES.hh>
 #include <common/Platform.hh>
 #include <common/storage/Storage.hh>
-extern "C" {
-#include <monocypher/monocypher.h>
 
+extern "C" {
 #include <assert.h>
 #include <string.h>
 }
@@ -37,60 +36,8 @@ void Random::Get(void *data, size_t size) {
     assert(s_isInit);
 
     Lock<Mutex> lock(*s_mutex);
-
-    while (size > 0) {
-        if (s_offset == s_buffer.count()) {
-            Array<u8, 8> nonce(0);
-            crypto_chacha20_djb(s_buffer.values(), nullptr, s_buffer.count(), s_buffer.values(),
-                    nonce.values(), 0);
-            s_offset = 32;
-        }
-
-        size_t chunkSize = Min(size, s_buffer.count() - s_offset);
-        memcpy(data, s_buffer.values() + s_offset, chunkSize);
-        data = reinterpret_cast<u8 *>(data) + chunkSize;
-        size -= chunkSize;
-        s_offset += chunkSize;
-    }
-
-    crypto_wipe(s_buffer.values() + 32, s_offset - 32);
+    br_hmac_drbg_generate(&s_ctx, data, size);
 }
-
-bool Random::InitWithDiscTimings() {
-    Storage::FileHandle file("dvd:/Movie/play1.thp", Storage::Mode::Read);
-    alignas(0x20) Array<u8, 256> buffer;
-    if (!file.read(buffer.values(), buffer.count(), 0)) {
-        return false;
-    }
-    s64 start = Clock::GetMonotonicTicks();
-    for (u32 i = 0; i < 32; i++) {
-        for (u32 j = 0; j < 8; j++) {
-            if (!file.read(buffer.values(), buffer.count(), (1 + i) * 4096)) {
-                return false;
-            }
-            s64 now = Clock::GetMonotonicTicks();
-            s_buffer[i] &= ~(1 << j);
-            s_buffer[i] |= ((now - start) & 1) << j;
-            start = now;
-        }
-    }
-    return true;
-}
-
-void Random::InitWithES() {
-    ES es;
-    assert(es.ok());
-
-    Array<u8, 0x3c> signature;
-    Array<u8, 0x180> certificate;
-    assert(es.sign(nullptr, 0, signature, certificate));
-    memcpy(s_buffer.values(), signature.values(), 32);
-}
-
-bool Random::s_isInit = false;
-Mutex *Random::s_mutex = nullptr;
-Array<u8, 32 + 256> Random::s_buffer;
-u16 Random::s_offset = s_buffer.count();
 #else
 #include <algorithm>
 #include <climits>
@@ -101,4 +48,55 @@ void Random::Get(void *data, size_t size) {
     std::generate(reinterpret_cast<u8 *>(data), reinterpret_cast<u8 *>(data) + size,
             std::ref(engine));
 }
+#endif
+
+const br_prng_class **Random::Ctx() {
+    static const br_prng_class vtable = {sizeof(const br_prng_class *), nullptr, Generate, nullptr};
+    static const br_prng_class *context = &vtable;
+    return &context;
+}
+
+#ifdef __CWCC__
+bool Random::InitWithDiscTimings() {
+    Storage::FileHandle file("dvd:/Movie/play1.thp", Storage::Mode::Read);
+    alignas(0x20) Array<u8, 256> buffer;
+    if (!file.read(buffer.values(), buffer.count(), 0)) {
+        return false;
+    }
+    Array<u8, 32> seed;
+    s64 start = Clock::GetMonotonicTicks();
+    for (u32 i = 0; i < seed.count(); i++) {
+        for (u32 j = 0; j < 8; j++) {
+            if (!file.read(buffer.values(), buffer.count(), (1 + i) * 4096)) {
+                return false;
+            }
+            s64 now = Clock::GetMonotonicTicks();
+            seed[i] &= ~(1 << j);
+            seed[i] |= ((now - start) & 1) << j;
+            start = now;
+        }
+    }
+    br_hmac_drbg_init(&s_ctx, &br_sha256_vtable, seed.values(), seed.count());
+    return true;
+}
+
+void Random::InitWithES() {
+    ES es;
+    assert(es.ok());
+
+    Array<u8, 0x3c> signature;
+    Array<u8, 0x180> certificate;
+    assert(es.sign(nullptr, 0, signature, certificate));
+    br_hmac_drbg_init(&s_ctx, &br_sha256_vtable, signature.values(), 32);
+}
+#endif
+
+void Random::Generate(const br_prng_class ** /* ctx */, void *out, size_t len) {
+    Get(out, len);
+}
+
+#ifdef __CWCC__
+bool Random::s_isInit = false;
+Mutex *Random::s_mutex = nullptr;
+br_hmac_drbg_context Random::s_ctx;
 #endif

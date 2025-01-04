@@ -1,5 +1,7 @@
 #pragma once
 
+#include "payload/crypto/DH.hh"
+
 #include <common/Array.hh>
 
 class SymmetricState {
@@ -10,7 +12,7 @@ public:
 
     SymmetricState();
     ~SymmetricState();
-    void mixDH(const Array<u8, 32> &k, const Array<u8, 32> &pk);
+    void mixDH(const DH::K &k, const DH::PK &pk);
     void mixHash(const u8 *input, size_t inputSize);
     void encryptAndHash(const u8 *input, size_t inputSize, u8 *output);
     bool decryptAndHash(const u8 *input, u8 *output, size_t outputSize);

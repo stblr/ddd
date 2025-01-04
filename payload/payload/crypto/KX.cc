@@ -6,22 +6,17 @@
 
 #include "KX.hh"
 
-#include "payload/payload/crypto/Random.hh"
-
 extern "C" {
 #include <monocypher/monocypher.h>
 
 #include <string.h>
 }
 
-KX::ClientState::ClientState(const Array<u8, 32> &clientK, const Array<u8, 32> &serverPK)
+KX::ClientState::ClientState(DH::K clientK, DH::PK serverPK)
     : m_hasM1(false), m_hasM2(false), m_hasClientSession(false),
       m_state(&ClientState::statePrologue), m_clientK(clientK), m_serverPK(serverPK) {}
 
-KX::ClientState::~ClientState() {
-    crypto_wipe(m_clientEphemeralK.values(), m_clientEphemeralK.count());
-    crypto_wipe(m_clientK.values(), m_clientK.count());
-}
+KX::ClientState::~ClientState() {}
 
 bool KX::ClientState::hasM1() const {
     return m_hasM1;
@@ -65,31 +60,31 @@ void KX::ClientState::statePrologue() {
 }
 
 void KX::ClientState::stateS() {
-    m_symmetricState.mixHash(m_serverPK.values(), m_serverPK.count());
+    m_symmetricState.mixHash(m_serverPK.m_q.values(), m_serverPK.m_q.count());
     m_state = &ClientState::stateM1E;
 }
 
 void KX::ClientState::stateM1E() {
-    Random::Get(m_clientEphemeralK.values(), m_clientEphemeralK.count());
-    crypto_x25519_public_key(m_m1.values() + 0, m_clientEphemeralK.values());
+    m_clientEphemeralK.emplace();
+    br_ec_compute_pub(&br_ec_c25519_m15, nullptr, m_m1.values() + 0, &m_clientEphemeralK->m_k);
     m_symmetricState.mixHash(m_m1.values() + 0, 32);
     m_state = &ClientState::stateM1ES;
 }
 
 void KX::ClientState::stateM1ES() {
-    m_symmetricState.mixDH(m_clientEphemeralK, m_serverPK);
+    m_symmetricState.mixDH(*m_clientEphemeralK, m_serverPK);
     m_state = &ClientState::stateM1S;
 }
 
 void KX::ClientState::stateM1S() {
-    Array<u8, 32> clientPK;
-    crypto_x25519_public_key(clientPK.values(), m_clientK.values());
-    m_symmetricState.encryptAndHash(clientPK.values(), clientPK.count(), m_m1.values() + 32);
+    DH::PK clientPK(*m_clientK);
+    m_symmetricState.encryptAndHash(clientPK.m_q.values(), clientPK.m_q.count(),
+            m_m1.values() + 32);
     m_state = &ClientState::stateM1SS;
 }
 
 void KX::ClientState::stateM1SS() {
-    m_symmetricState.mixDH(m_clientK, m_serverPK);
+    m_symmetricState.mixDH(*m_clientK, m_serverPK);
     m_state = &ClientState::stateM1Final;
 }
 
@@ -104,20 +99,20 @@ void KX::ClientState::stateM2E() {
         return;
     }
 
-    memcpy(m_serverEphemeralPK.values(), m_m2.values() + 0, m_serverEphemeralPK.count());
-    m_symmetricState.mixHash(m_serverEphemeralPK.values(), m_serverEphemeralPK.count());
+    memcpy(m_serverEphemeralPK.m_q.values(), m_m2.values() + 0, m_serverEphemeralPK.m_q.count());
+    m_symmetricState.mixHash(m_m2.values() + 0, 32);
     m_state = &ClientState::stateM2EE;
 }
 
 void KX::ClientState::stateM2EE() {
-    m_symmetricState.mixDH(m_clientEphemeralK, m_serverEphemeralPK);
-    crypto_wipe(m_clientEphemeralK.values(), m_clientEphemeralK.count());
+    m_symmetricState.mixDH(*m_clientEphemeralK, m_serverEphemeralPK);
+    m_clientEphemeralK.reset();
     m_state = &ClientState::stateM2SE;
 }
 
 void KX::ClientState::stateM2SE() {
-    m_symmetricState.mixDH(m_clientK, m_serverEphemeralPK);
-    crypto_wipe(m_clientK.values(), m_clientK.count());
+    m_symmetricState.mixDH(*m_clientK, m_serverEphemeralPK);
+    m_clientK.reset();
     m_state = &ClientState::stateM2Final;
 }
 
@@ -136,14 +131,11 @@ void KX::ClientState::stateSession() {
     m_state = static_cast<State>(nullptr);
 }
 
-KX::ServerState::ServerState(const Array<u8, 32> &serverK)
+KX::ServerState::ServerState(DH::K serverK)
     : m_hasM1(false), m_hasM2(false), m_hasServerSession(false),
       m_state(&ServerState::statePrologue), m_serverK(serverK) {}
 
-KX::ServerState::~ServerState() {
-    crypto_wipe(m_serverEphemeralK.values(), m_serverEphemeralK.count());
-    crypto_wipe(m_serverK.values(), m_serverK.count());
-}
+KX::ServerState::~ServerState() {}
 
 bool KX::ServerState::hasM1() const {
     return m_hasM1;
@@ -181,8 +173,8 @@ const Session *KX::ServerState::serverSession() const {
     return m_hasServerSession ? &m_serverSession : static_cast<Session *>(nullptr);
 }
 
-const Array<u8, 32> *KX::ServerState::clientPK() const {
-    return m_hasServerSession ? &m_clientPK : static_cast<Array<u8, 32> *>(nullptr);
+const DH::PK *KX::ServerState::clientPK() const {
+    return m_hasServerSession ? &m_clientPK : static_cast<DH::PK *>(nullptr);
 }
 
 void KX::ServerState::statePrologue() {
@@ -191,9 +183,8 @@ void KX::ServerState::statePrologue() {
 }
 
 void KX::ServerState::stateS() {
-    Array<u8, 32> serverPK;
-    crypto_x25519_public_key(serverPK.values(), m_serverK.values());
-    m_symmetricState.mixHash(serverPK.values(), serverPK.count());
+    DH::PK serverPK(*m_serverK);
+    m_symmetricState.mixHash(serverPK.m_q.values(), serverPK.m_q.count());
     m_state = &ServerState::stateM1E;
 }
 
@@ -202,19 +193,19 @@ void KX::ServerState::stateM1E() {
         return;
     }
 
-    memcpy(m_clientEphemeralPK.values(), m_m1.values() + 0, m_clientEphemeralPK.count());
-    m_symmetricState.mixHash(m_clientEphemeralPK.values(), m_clientEphemeralPK.count());
+    memcpy(m_clientEphemeralPK.m_q.values(), m_m1.values() + 0, m_clientEphemeralPK.m_q.count());
+    m_symmetricState.mixHash(m_m1.values(), 32);
     m_state = &ServerState::stateM1ES;
 }
 
 void KX::ServerState::stateM1ES() {
-    m_symmetricState.mixDH(m_serverK, m_clientEphemeralPK);
+    m_symmetricState.mixDH(*m_serverK, m_clientEphemeralPK);
     m_state = &ServerState::stateM1S;
 }
 
 void KX::ServerState::stateM1S() {
-    if (!m_symmetricState.decryptAndHash(m_m1.values() + 32, m_clientPK.values(),
-                m_clientPK.count())) {
+    if (!m_symmetricState.decryptAndHash(m_m1.values() + 32, m_clientPK.m_q.values(),
+                m_clientPK.m_q.count())) {
         m_state = static_cast<State>(nullptr);
         return;
     }
@@ -223,8 +214,8 @@ void KX::ServerState::stateM1S() {
 }
 
 void KX::ServerState::stateM1SS() {
-    m_symmetricState.mixDH(m_serverK, m_clientPK);
-    crypto_wipe(m_serverK.values(), m_serverK.count());
+    m_symmetricState.mixDH(*m_serverK, m_clientPK);
+    m_serverK.reset();
     m_state = &ServerState::stateM1Final;
 }
 
@@ -238,20 +229,20 @@ void KX::ServerState::stateM1Final() {
 }
 
 void KX::ServerState::stateM2E() {
-    Random::Get(m_serverEphemeralK.values(), m_serverEphemeralK.count());
-    crypto_x25519_public_key(m_m2.values() + 0, m_serverEphemeralK.values());
+    m_serverEphemeralK.emplace();
+    br_ec_compute_pub(&br_ec_c25519_m15, nullptr, m_m2.values() + 0, &m_serverEphemeralK->m_k);
     m_symmetricState.mixHash(m_m2.values() + 0, 32);
     m_state = &ServerState::stateM2EE;
 }
 
 void KX::ServerState::stateM2EE() {
-    m_symmetricState.mixDH(m_serverEphemeralK, m_clientEphemeralPK);
+    m_symmetricState.mixDH(*m_serverEphemeralK, m_clientEphemeralPK);
     m_state = &ServerState::stateM2SE;
 }
 
 void KX::ServerState::stateM2SE() {
-    m_symmetricState.mixDH(m_serverEphemeralK, m_clientPK);
-    crypto_wipe(m_serverEphemeralK.values(), m_serverEphemeralK.count());
+    m_symmetricState.mixDH(*m_serverEphemeralK, m_clientPK);
+    m_serverEphemeralK.reset();
     m_state = &ServerState::stateM2Final;
 }
 

@@ -10,11 +10,8 @@ static lest::tests specification;
 #define CASE(name) lest_CASE(specification, name)
 
 CASE("Invalid server PK") {
-    Array<u8, 32> clientK, serverK, invalidServerK, invalidServerPK;
-    Random::Get(clientK.values(), clientK.count());
-    Random::Get(serverK.values(), serverK.count());
-    Random::Get(invalidServerK.values(), invalidServerK.count());
-    crypto_x25519_public_key(invalidServerPK.values(), invalidServerK.values());
+    DH::K clientK, serverK, invalidServerK;
+    DH::PK invalidServerPK(invalidServerK);
 
     KX::ClientState clientState(clientK, invalidServerPK);
     std::array<u8, KX::M1Size> m1;
@@ -29,10 +26,8 @@ CASE("Invalid server PK") {
 }
 
 CASE("Invalid m1") {
-    Array<u8, 32> clientK, serverK, serverPK;
-    Random::Get(clientK.values(), clientK.count());
-    Random::Get(serverK.values(), serverK.count());
-    crypto_x25519_public_key(serverPK.values(), serverK.values());
+    DH::K clientK, serverK;
+    DH::PK serverPK(serverK);
 
     KX::ClientState clientState(clientK, serverPK);
     while (!clientState.hasM1()) {
@@ -48,10 +43,8 @@ CASE("Invalid m1") {
 }
 
 CASE("Invalid m2") {
-    Array<u8, 32> clientK, serverK, serverPK;
-    Random::Get(clientK.values(), clientK.count());
-    Random::Get(serverK.values(), serverK.count());
-    crypto_x25519_public_key(serverPK.values(), serverK.values());
+    DH::K clientK, serverK;
+    DH::PK serverPK(serverK);
 
     KX::ClientState clientState(clientK, serverPK);
     while (!clientState.hasM1()) {
@@ -65,10 +58,8 @@ CASE("Invalid m2") {
 }
 
 CASE("Valid") {
-    Array<u8, 32> clientK, serverK, serverPK;
-    Random::Get(clientK.values(), clientK.count());
-    Random::Get(serverK.values(), serverK.count());
-    crypto_x25519_public_key(serverPK.values(), serverK.values());
+    DH::K clientK, serverK;
+    DH::PK serverPK(serverK);
 
     KX::ClientState clientState(clientK, serverPK);
     std::array<u8, KX::M1Size> m1;
@@ -80,7 +71,7 @@ CASE("Valid") {
     while (serverState.update()) {}
     std::array<u8, KX::M2Size> m2;
     EXPECT(serverState.getM2(m2.data()));
-    const Array<u8, 32> *clientPK = serverState.clientPK();
+    const DH::PK *clientPK = serverState.clientPK();
     EXPECT(clientPK);
     const Session *serverSession = serverState.serverSession();
     EXPECT(serverSession);
@@ -89,9 +80,8 @@ CASE("Valid") {
     const Session *clientSession = clientState.clientSession();
     EXPECT(clientSession);
 
-    Array<u8, 32> expectedClientPK;
-    crypto_x25519_public_key(expectedClientPK.values(), clientK.values());
-    EXPECT(*clientPK == expectedClientPK);
+    DH::PK expectedClientPK(clientK);
+    EXPECT(clientPK->m_q == expectedClientPK.m_q);
     EXPECT(serverSession->m_readK != serverSession->m_writeK);
     EXPECT(serverSession->m_readK == clientSession->m_writeK);
     EXPECT(serverSession->m_writeK == clientSession->m_readK);

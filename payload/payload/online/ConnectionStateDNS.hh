@@ -1,10 +1,11 @@
 #pragma once
 
+#include "payload/crypto/DH.hh"
 #include "payload/online/ConnectionState.hh"
 
 class ConnectionStateDNS : public ConnectionState {
 public:
-    ConnectionStateDNS(JKRHeap *heap, Array<u8, 32> serverPK, const char *name);
+    ConnectionStateDNS(JKRHeap *heap, DH::PK serverPK, const char *name);
     ~ConnectionStateDNS() override;
     ConnectionState &reset() override;
     ConnectionState &read(ServerStateReader &reader, u8 *buffer, u32 size,

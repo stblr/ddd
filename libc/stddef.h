@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-#define NULL nullptr
-#else
-#define NULL ((void *)0)
-#endif
+#define NULL 0
 
 typedef unsigned long size_t;

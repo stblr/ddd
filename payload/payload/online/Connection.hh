@@ -1,5 +1,6 @@
 #pragma once
 
+#include "payload/crypto/DH.hh"
 #include "payload/network/Socket.hh"
 #include "payload/online/ConnectionState.hh"
 
@@ -8,7 +9,7 @@
 
 class Connection {
 public:
-    Connection(JKRHeap *heap, Array<u8, 32> serverPK, const char *name);
+    Connection(JKRHeap *heap, DH::PK serverPK, const char *name);
     ~Connection();
     void reset();
     bool read(ServerStateReader &reader, u8 *buffer, u32 size, const Socket::Address &address);

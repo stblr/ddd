@@ -6,7 +6,7 @@ extern "C" {
 #include <assert.h>
 }
 
-ConnectionStateSession::ConnectionStateSession(JKRHeap *heap, Array<u8, 32> serverPK,
+ConnectionStateSession::ConnectionStateSession(JKRHeap *heap, DH::PK serverPK,
         Socket::Address address, Session session)
     : ConnectionState(heap, serverPK), m_address(address), m_session(session) {}
 

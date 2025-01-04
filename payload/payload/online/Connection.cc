@@ -2,7 +2,7 @@
 
 #include "payload/online/ConnectionStateDNS.hh"
 
-Connection::Connection(JKRHeap *heap, Array<u8, 32> serverPK, const char *name)
+Connection::Connection(JKRHeap *heap, DH::PK serverPK, const char *name)
     : m_heap(heap), m_state(new(m_heap, 0x4) ConnectionStateDNS(m_heap, serverPK, name)) {}
 
 Connection::~Connection() {}

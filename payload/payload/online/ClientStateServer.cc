@@ -161,9 +161,10 @@ void ClientStateServer::checkConnections() {
         for (u32 i = 0; i < serverManager->serverCount(); i++) {
             m_connections.pushBack();
             const ServerManager::Server &server = serverManager->server(i);
-            Array<u8, 32> publicK = server.publicKey();
+            DH::PK pk;
+            pk.m_q = server.publicKey();
             const char *name = server.address();
-            Connection *connection = new (m_heap, 0x4) Connection(m_heap, publicK, name);
+            Connection *connection = new (m_heap, 0x4) Connection(m_heap, pk, name);
             m_connections.back()->reset(connection);
         }
     }

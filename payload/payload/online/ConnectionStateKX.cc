@@ -7,7 +7,7 @@ extern "C" {
 #include <assert.h>
 }
 
-ConnectionStateKX::ConnectionStateKX(JKRHeap *heap, Array<u8, 32> serverPK, Socket::Address address)
+ConnectionStateKX::ConnectionStateKX(JKRHeap *heap, DH::PK serverPK, Socket::Address address)
     : ConnectionState(heap, serverPK), m_address(address), m_clientState(ClientK::Get(), serverPK) {
 }
 

@@ -15,7 +15,6 @@ public:
     bool read(u8 *buffer, u32 size, const u8 mac[MACSize], const u8 nonce[NonceSize]);
     void write(u8 *buffer, u32 size, u8 mac[MACSize], u8 nonce[NonceSize]);
 
-public:
     Array<u8, 32> m_readK;
     Array<u8, 32> m_writeK;
 
