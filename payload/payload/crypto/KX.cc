@@ -66,7 +66,7 @@ void KX::ClientState::stateS() {
 
 void KX::ClientState::stateM1E() {
     m_clientEphemeralK.emplace();
-    br_ec_compute_pub(&br_ec_c25519_m15, nullptr, m_m1.values() + 0, &m_clientEphemeralK->m_k);
+    br_ec_compute_pub(&br_ec_c25519_m31, nullptr, m_m1.values() + 0, &m_clientEphemeralK->m_k);
     m_symmetricState.mixHash(m_m1.values() + 0, 32);
     m_state = &ClientState::stateM1ES;
 }
@@ -230,7 +230,7 @@ void KX::ServerState::stateM1Final() {
 
 void KX::ServerState::stateM2E() {
     m_serverEphemeralK.emplace();
-    br_ec_compute_pub(&br_ec_c25519_m15, nullptr, m_m2.values() + 0, &m_serverEphemeralK->m_k);
+    br_ec_compute_pub(&br_ec_c25519_m31, nullptr, m_m2.values() + 0, &m_serverEphemeralK->m_k);
     m_symmetricState.mixHash(m_m2.values() + 0, 32);
     m_state = &ServerState::stateM2EE;
 }

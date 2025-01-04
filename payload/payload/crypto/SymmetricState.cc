@@ -8,6 +8,9 @@
 
 #include "payload/crypto/HKDFState.hh"
 
+extern "C" {
+#include <bearssl/bearssl.h>
+}
 #include <common/Bytes.hh>
 extern "C" {
 #include <monocypher/monocypher.h>
@@ -48,28 +51,32 @@ void SymmetricState::mixHash(const u8 *input, size_t inputSize) {
 }
 
 void SymmetricState::encryptAndHash(const u8 *input, size_t inputSize, u8 *output) {
-    crypto_aead_ctx ctx;
-    ctx.counter = 0;
-    memcpy(ctx.key, m_k.values(), m_k.count());
-    Bytes::WriteLE<u64>(ctx.nonce, 0, m_nonce);
+    Array<u8, 12> nonce;
+    Bytes::WriteLE<u32>(nonce.values(), 0, 0);
+    Bytes::WriteLE<u64>(nonce.values(), 4, m_nonce);
+    if (input) {
+        memcpy(output, input, inputSize);
+    }
     u8 *mac = output + inputSize;
-    crypto_aead_write(&ctx, output, mac, m_h.values(), m_h.count(), input, inputSize);
-    crypto_wipe(&ctx, sizeof(ctx));
+    br_poly1305_ctmul_run(m_k.values(), nonce.values(), output, inputSize, m_h.values(),
+            m_h.count(), mac, br_chacha20_ct_run, true);
     m_nonce++;
     mixHash(output, inputSize + MACSize);
 }
 
 bool SymmetricState::decryptAndHash(const u8 *input, u8 *output, size_t outputSize) {
-    crypto_aead_ctx ctx;
-    ctx.counter = 0;
-    memcpy(ctx.key, m_k.values(), m_k.count());
-    Bytes::WriteLE<u64>(ctx.nonce, 0, m_nonce);
-    const u8 *mac = input + outputSize;
-    if (crypto_aead_read(&ctx, output, mac, m_h.values(), m_h.count(), input, outputSize)) {
-        crypto_wipe(&ctx, sizeof(ctx));
+    Array<u8, 12> nonce;
+    Bytes::WriteLE<u32>(nonce.values(), 0, 0);
+    Bytes::WriteLE<u64>(nonce.values(), 4, m_nonce);
+    if (output) {
+        memcpy(output, input, outputSize);
+    }
+    Array<u8, 16> mac;
+    br_poly1305_ctmul_run(m_k.values(), nonce.values(), output, outputSize, m_h.values(),
+            m_h.count(), mac.values(), br_chacha20_ct_run, false);
+    if (crypto_verify16(mac.values(), input + outputSize)) {
         return false;
     }
-    crypto_wipe(&ctx, sizeof(ctx));
     m_nonce++;
     mixHash(input, outputSize + MACSize);
     return true;

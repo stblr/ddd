@@ -56,6 +56,10 @@ n.newline()
 
 common_cflags = [
     '-Cpp_exceptions', 'off',
+    '-d', 'BR_CT_MUL31',
+    '-d', 'BR_CT_MUL15',
+    '-d', 'BR_LE_UNALIGNED=0',
+    '-d', 'BR_BE_UNALIGNED=0',
     '-enum', 'int',
     '-fp', 'hard',
     '-gccdep',
@@ -78,6 +82,10 @@ common_cflags = [
 ]
 common_ccflags = [
     '-Cpp_exceptions', 'off',
+    '-d', 'BR_CT_MUL31',
+    '-d', 'BR_CT_MUL15',
+    '-d', 'BR_LE_UNALIGNED=0',
+    '-d', 'BR_BE_UNALIGNED=0',
     '-d', 'override=',
     '-enum', 'int',
     '-fp', 'hard',
@@ -131,6 +139,8 @@ target_ccflags = {
     ],
 }
 common_ncflags = [
+    '-D', 'BR_LE_UNALIGNED=0',
+    '-D', 'BR_BE_UNALIGNED=0',
     '-fsanitize=undefined',
     '-isystem', '.',
     '-isystem', 'vendor',
@@ -143,6 +153,8 @@ common_ncflags = [
     '-Wextra',
 ]
 common_nccflags = [
+    '-D', 'BR_LE_UNALIGNED=0',
+    '-D', 'BR_BE_UNALIGNED=0',
     '-D', 'lest_FEATURE_AUTO_REGISTER',
     '-fcheck-new',
     '-fsanitize=undefined',

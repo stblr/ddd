@@ -5,7 +5,7 @@
 namespace DH {
 
 DH::K::K() {
-    br_ec_keygen(Random::Ctx(), &br_ec_c25519_m15, &m_k, m_x.values(), BR_EC_curve25519);
+    br_ec_keygen(Random::Ctx(), &br_ec_c25519_m31, &m_k, m_x.values(), BR_EC_curve25519);
 }
 
 DH::K::~K() {
@@ -19,14 +19,14 @@ DH::PK::PK() {
 }
 
 DH::PK::PK(const K &k) {
-    br_ec_compute_pub(&br_ec_c25519_m15, &m_pk, m_q.values(), &k.m_k);
+    br_ec_compute_pub(&br_ec_c25519_m31, &m_pk, m_q.values(), &k.m_k);
 }
 
 DH::PK::~PK() {}
 
 DH::SK::SK(const K &k, const PK &pk) {
     m_g = pk.m_q;
-    br_ec_c25519_m15.mul(m_g.values(), m_g.count(), k.m_x.values(), k.m_x.count(),
+    br_ec_c25519_m31.mul(m_g.values(), m_g.count(), k.m_x.values(), k.m_x.count(),
             BR_EC_curve25519);
 }
 
