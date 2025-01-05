@@ -21,6 +21,6 @@ public:
 private:
     Array<u8, 32> m_k;
     u64 m_nonce;
-    Array<u8, 64> m_h;
-    Array<u8, 64> m_ck;
+    Array<u8, 32> m_h;
+    Array<u8, 32> m_ck;
 };

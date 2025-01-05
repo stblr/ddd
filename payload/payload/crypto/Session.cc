@@ -1,5 +1,8 @@
 #include "Session.hh"
 
+extern "C" {
+#include <bearssl/bearssl.h>
+}
 #include <common/Bytes.hh>
 extern "C" {
 #include <monocypher/monocypher.h>
@@ -10,13 +13,13 @@ Session::Session() {
 }
 
 Session::~Session() {
-    crypto_wipe(m_writeK.values(), m_writeK.count());
-    crypto_wipe(m_readK.values(), m_readK.count());
+    m_writeK.fill(0);
+    m_readK.fill(0);
 }
 
 void Session::reset() {
-    crypto_wipe(m_readK.values(), m_readK.count());
-    crypto_wipe(m_writeK.values(), m_writeK.count());
+    m_readK.fill(0);
+    m_writeK.fill(0);
     m_readNonce = 0;
     m_writeNonce = 0;
 }
@@ -38,10 +41,11 @@ bool Session::read(u8 *buffer, u32 size, const u8 mac[MACSize], const u8 nonce[N
 }
 
 void Session::write(u8 *buffer, u32 size, u8 mac[MACSize], u8 nonce[NonceSize]) {
+    Array<u8, 12> writeNonce;
+    Bytes::WriteLE<u32>(writeNonce.values(), 0, 0);
+    Bytes::WriteLE<u64>(writeNonce.values(), 4, m_writeNonce);
+    br_poly1305_ctmul_run(m_writeK.values(), writeNonce.values(), buffer, size, nullptr, 0, mac,
+            br_chacha20_ct_run, true);
     Bytes::WriteLE<u64>(nonce, 0, m_writeNonce);
-    crypto_aead_ctx ctx;
-    crypto_aead_init_djb(&ctx, m_writeK.values(), nonce);
-    crypto_aead_write(&ctx, buffer, mac, nullptr, 0, buffer, size);
-    crypto_wipe(&ctx, sizeof(ctx));
     m_writeNonce++;
 }

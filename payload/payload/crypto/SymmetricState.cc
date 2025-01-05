@@ -6,8 +6,6 @@
 
 #include "SymmetricState.hh"
 
-#include "payload/crypto/HKDFState.hh"
-
 extern "C" {
 #include <bearssl/bearssl.h>
 }
@@ -23,8 +21,7 @@ SymmetricState::SymmetricState() {
     crypto_wipe(m_k.values(), m_k.count());
     m_nonce = UINT64_MAX;
     crypto_wipe(m_h.values(), m_h.count());
-    snprintf(reinterpret_cast<char *>(m_h.values()), m_h.count(),
-            "Noise_IK_25519_ChaChaPoly_BLAKE2b");
+    memcpy(m_h.values(), "Noise_IK_25519_ChaChaPoly_SHA256", m_h.count());
     m_ck = m_h;
 }
 
@@ -36,18 +33,23 @@ SymmetricState::~SymmetricState() {
 
 void SymmetricState::mixDH(const DH::K &k, const DH::PK &pk) {
     DH::SK sk(k, pk);
-    HKDFState hkdfState(m_ck, sk.m_g.values(), sk.m_g.count());
-    hkdfState.update(m_ck.values(), m_ck.count());
-    hkdfState.update(m_k.values(), m_k.count());
+    br_hkdf_context ctx;
+    br_hkdf_init(&ctx, &br_sha256_vtable, m_ck.values(), m_ck.count());
+    br_hkdf_inject(&ctx, sk.m_g.values(), sk.m_g.count());
+    br_hkdf_flip(&ctx);
+    br_hkdf_produce(&ctx, nullptr, 0, m_ck.values(), m_ck.count());
+    br_hkdf_produce(&ctx, nullptr, 0, m_k.values(), m_ck.count());
+    memset(&ctx, 0, sizeof(ctx));
     m_nonce = 0;
 }
 
 void SymmetricState::mixHash(const u8 *input, size_t inputSize) {
-    crypto_blake2b_ctx ctx;
-    crypto_blake2b_init(&ctx, m_h.count());
-    crypto_blake2b_update(&ctx, m_h.values(), m_h.count());
-    crypto_blake2b_update(&ctx, input, inputSize);
-    crypto_blake2b_final(&ctx, m_h.values());
+    br_sha256_context ctx;
+    br_sha256_init(&ctx);
+    br_sha256_update(&ctx, m_h.values(), m_h.count());
+    br_sha256_update(&ctx, input, inputSize);
+    br_sha256_out(&ctx, m_h.values());
+    memset(&ctx, 0, sizeof(ctx));
 }
 
 void SymmetricState::encryptAndHash(const u8 *input, size_t inputSize, u8 *output) {
@@ -83,7 +85,10 @@ bool SymmetricState::decryptAndHash(const u8 *input, u8 *output, size_t outputSi
 }
 
 void SymmetricState::computeSessionKeys(Array<u8, 32> &upstreamK, Array<u8, 32> &downstreamK) {
-    HKDFState hkdfState(m_ck, nullptr, 0);
-    hkdfState.update(upstreamK.values(), upstreamK.count());
-    hkdfState.update(downstreamK.values(), downstreamK.count());
+    br_hkdf_context ctx;
+    br_hkdf_init(&ctx, &br_sha256_vtable, m_ck.values(), m_ck.count());
+    br_hkdf_flip(&ctx);
+    br_hkdf_produce(&ctx, nullptr, 0, upstreamK.values(), upstreamK.count());
+    br_hkdf_produce(&ctx, nullptr, 0, downstreamK.values(), downstreamK.count());
+    memset(&ctx, 0, sizeof(ctx));
 }
