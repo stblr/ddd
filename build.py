@@ -141,6 +141,7 @@ target_ccflags = {
 common_ncflags = [
     '-D', 'BR_LE_UNALIGNED=0',
     '-D', 'BR_BE_UNALIGNED=0',
+    '-fno-sanitize-recover=all',
     '-fsanitize=undefined',
     '-isystem', '.',
     '-isystem', 'vendor',
@@ -157,6 +158,7 @@ common_nccflags = [
     '-D', 'BR_BE_UNALIGNED=0',
     '-D', 'lest_FEATURE_AUTO_REGISTER',
     '-fcheck-new',
+    '-fno-sanitize-recover=all',
     '-fsanitize=undefined',
     '-isystem', '.',
     '-isystem', 'vendor',
