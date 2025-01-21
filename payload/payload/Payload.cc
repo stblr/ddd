@@ -7,6 +7,7 @@
 #include "payload/Lock.hh"
 #include "payload/LogFile.hh"
 #include "payload/VirtualCard.hh"
+#include "payload/VirtualETH.hh"
 #include "payload/WUP028.hh"
 #include "payload/crypto/CubeRandom.hh"
 #include "payload/network/CubeDNS.hh"
@@ -115,6 +116,10 @@ void Payload::Run(Context *context) {
     INFO("Initializing client key...");
     ClientK::Init();
     INFO("Initialized client key.");
+
+    INFO("Initializing virtual ETH...");
+    VirtualETH::Init();
+    INFO("Initialized virtual ETH.");
 
     INFO("Initializing DNS...");
     CubeDNS::Init();
