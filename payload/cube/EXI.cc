@@ -6,13 +6,17 @@ extern "C" {
 }
 #include <payload/Lock.hh>
 
-EXI::Device::Device(u32 channel, u32 device, u32 frequency) : m_channel(channel), m_ok(false) {
-    {
-        Lock<NoInterrupts> lock;
+EXI::Device::Device(u32 channel, u32 device, u32 frequency, bool *wasDetached)
+    : m_channel(channel), m_ok(false) {
+    Lock<NoInterrupts> lock;
 
-        while (!EXILock(channel, device, HandleUnlock)) {
-            OSSleepThread(&s_queues[channel]);
-        }
+    while (!EXILock(channel, device, HandleUnlock)) {
+        OSSleepThread(&s_queues[channel]);
+    }
+
+    if (wasDetached && *wasDetached) {
+        EXIUnlock(channel);
+        return;
     }
 
     if (!EXISelect(channel, device, frequency)) {
@@ -36,6 +40,30 @@ bool EXI::Device::immRead(void *buffer, u32 size) {
 
 bool EXI::Device::immWrite(const void *buffer, u32 size) {
     return EXIImmEx(m_channel, const_cast<void *>(buffer), size, EXI_WRITE);
+}
+
+bool EXI::Device::dmaRead(void *buffer, u32 size) {
+    if (size == 0) {
+        return true;
+    }
+
+    if (!EXIDma(m_channel, buffer, size, EXI_READ, nullptr)) {
+        return false;
+    }
+
+    return EXISync(m_channel);
+}
+
+bool EXI::Device::dmaWrite(const void *buffer, u32 size) {
+    if (size == 0) {
+        return true;
+    }
+
+    if (!EXIDma(m_channel, const_cast<void *>(buffer), size, EXI_WRITE, nullptr)) {
+        return false;
+    }
+
+    return EXISync(m_channel);
 }
 
 bool EXI::GetID(u32 channel, u32 device, u32 &id) {
