@@ -72,7 +72,7 @@ void VirtualETH::handleEXT() {
 }
 
 bool VirtualETH::init() {
-    m_bank = 4;
+    m_bank = 0;
 
     u32 id;
     if (!EXI::GetID(m_channel, 0, id)) {
@@ -102,7 +102,7 @@ bool VirtualETH::init() {
     u8 estat;
     s64 start = Clock::GetMonotonicTicks();
     do {
-        if (!readControlRegister(ESTAT, estat, true)) {
+        if (!readControlRegister(ESTAT, estat, false)) {
             return false;
         }
 
@@ -124,7 +124,7 @@ bool VirtualETH::init() {
     if (!readPHYRegister(PHID2, phid2)) {
         return false;
     }
-    DEBUG("phid2 %04x", phid1);
+    DEBUG("phid2 %04x", phid2);
 
     return false;
 }
@@ -147,7 +147,12 @@ bool VirtualETH::setBank(u8 bank) {
         return true;
     }
 
-    return bitFieldClear(ECON1, 3) && bitFieldSet(ECON1, bank);
+    if (!bitFieldClear(ECON1, m_bank) || !bitFieldSet(ECON1, bank)) {
+        return false;
+    }
+
+    m_bank = bank;
+    return true;
 }
 
 bool VirtualETH::readControlRegister(u8 address, u8 &data, bool hasDummy) {
@@ -169,7 +174,7 @@ bool VirtualETH::writeControlRegister(u8 address, u8 data) {
         return false;
     }
 
-    return write(1 << 5 | (address & 0x1f), &data, sizeof(data));
+    return write(2 << 5 | (address & 0x1f), &data, sizeof(data));
 }
 
 bool VirtualETH::readControlRegister(u8 address, u16 &data, bool hasDummy) {
@@ -199,7 +204,7 @@ bool VirtualETH::readPHYRegister(u8 address, u16 &data) {
         return false;
     }
 
-    u16 micmd = 1 << 0;
+    u8 micmd = 1 << 0;
     if (!writeControlRegister(MICMD, micmd)) {
         return false;
     }
