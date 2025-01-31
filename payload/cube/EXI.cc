@@ -1,10 +1,12 @@
 #include <cube/EXI.hh>
 
+#include <cube/Memory.hh>
 extern "C" {
 #include <dolphin/EXIBios.h>
 #include <dolphin/OSThread.h>
 }
 #include <payload/Lock.hh>
+#include <portable/Align.hh>
 
 EXI::Device::Device(u32 channel, u32 device, u32 frequency, bool *wasDetached)
     : m_channel(channel), m_ok(false) {
@@ -43,27 +45,43 @@ bool EXI::Device::immWrite(const void *buffer, u32 size) {
 }
 
 bool EXI::Device::dmaRead(void *buffer, u32 size) {
-    if (size == 0) {
-        return true;
+    if (!Memory::IsAligned(buffer, 0x20)) {
+        return immRead(buffer, size);
     }
 
-    if (!EXIDma(m_channel, buffer, size, EXI_READ, nullptr)) {
-        return false;
+    u32 alignedSize = AlignDown<u32>(size, 0x20);
+    if (alignedSize != 0) {
+        if (!EXIDma(m_channel, buffer, alignedSize, EXI_READ, nullptr)) {
+            return false;
+        }
+        if (!EXISync(m_channel)) {
+            return false;
+        }
     }
 
-    return EXISync(m_channel);
+    buffer = reinterpret_cast<u8 *>(buffer) + alignedSize;
+    size -= alignedSize;
+    return immRead(buffer, size);
 }
 
 bool EXI::Device::dmaWrite(const void *buffer, u32 size) {
-    if (size == 0) {
-        return true;
+    if (!Memory::IsAligned(buffer, 0x20)) {
+        return immWrite(buffer, size);
     }
 
-    if (!EXIDma(m_channel, const_cast<void *>(buffer), size, EXI_WRITE, nullptr)) {
-        return false;
+    u32 alignedSize = AlignDown<u32>(size, 0x20);
+    if (alignedSize != 0) {
+        if (!EXIDma(m_channel, const_cast<void *>(buffer), alignedSize, EXI_WRITE, nullptr)) {
+            return false;
+        }
+        if (!EXISync(m_channel)) {
+            return false;
+        }
     }
 
-    return EXISync(m_channel);
+    buffer = reinterpret_cast<const u8 *>(buffer) + alignedSize;
+    size -= alignedSize;
+    return immWrite(buffer, size);
 }
 
 bool EXI::GetID(u32 channel, u32 device, u32 &id) {
