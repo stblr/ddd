@@ -1,4 +1,5 @@
-#include <lest.hpp>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest/doctest.h>
 #include <payload/SZSReader.hh>
 
 #include <vector>
@@ -47,45 +48,37 @@ private:
     std::vector<u8> m_uncompressed;
 };
 
-static lest::tests specification;
-
-#define CASE(name) lest_CASE(specification, name)
-
-CASE("SZS") {
-    SETUP("Incomplete header") {
+TEST_CASE("SZSReader") {
+    SUBCASE("Incomplete header") {
         std::vector<u8> compressed{0x59, 0x61, 0x7a, 0x30, 0x00};
 
-        SECTION("read") {
+        SUBCASE("read") {
             SZSLoader loader(&compressed);
-            EXPECT_NOT(loader.read());
+            CHECK_FALSE(loader.read());
         }
     }
 
-    SETUP("Wrong magic") {
+    SUBCASE("Wrong magic") {
         std::vector<u8> compressed{0x59, 0x61, 0x79, 0x30, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00, 0x11, 0x70, 0x01};
 
-        SECTION("read") {
+        SUBCASE("read") {
             SZSLoader loader(&compressed);
-            EXPECT_NOT(loader.read());
+            CHECK_FALSE(loader.read());
         }
     }
 
-    SETUP("Correct file") {
+    SUBCASE("Correct file") {
         std::vector<u8> compressed{0x59, 0x61, 0x7a, 0x30, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00, 0x11, 0x70, 0x01};
 
-        SECTION("read") {
+        SUBCASE("read") {
             SZSLoader loader(&compressed);
-            EXPECT(loader.read());
-            EXPECT(loader.uncompressedSize() == 0xb);
+            CHECK(loader.read());
+            CHECK(loader.uncompressedSize() == 0xb);
             for (u32 i = 0; i < loader.uncompressedSize(); i++) {
-                EXPECT(loader.uncompressed()[i] == 0x11 * (i % 0x2));
+                CHECK(loader.uncompressed()[i] == 0x11 * (i % 0x2));
             }
         }
     }
-}
-
-int main(int argc, char *argv[]) {
-    return lest::run(specification, argc, argv, std::cerr);
 }
