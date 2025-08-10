@@ -2,10 +2,37 @@ extern "C" {
 #include "CARD.h"
 }
 
+#include "dolphin/DSP.h"
+
+#include <cube/DCache.hh>
+#include <cube/Platform.hh>
 #include <payload/VirtualCard.hh>
+#include <portable/Bytes.hh>
+
+struct CARDControl {
+    u8 _000[0x030 - 0x000];
+    DSPTaskInfo taskInfo;
+    u8 *workArea;
+    u8 _084[0x110 - 0x084];
+};
+size_assert(CARDControl, 0x110);
 
 static Array<VirtualCard *, CARD_NUM_CHANS> s_virtualCards(nullptr);
 static Array<VirtualCard *, CARD_NUM_CHANS> s_nextVirtualCards(nullptr);
+
+extern "C" void REPLACED(CARDInitCallback)(DSPTaskInfo *taskInfo);
+extern "C" REPLACE void CARDInitCallback(DSPTaskInfo *taskInfo) {
+    if (!Platform::IsGameCube()) {
+        CARDControl *card = container_of(taskInfo, CARDControl, taskInfo);
+        u8 *workArea = card->workArea;
+        u32 address = Bytes::ReadBE<u32>(workArea, 0x08);
+        address |= 0x10000000;
+        Bytes::WriteBE<u32>(workArea, 0x08, address);
+        DCache::Flush(workArea, 0x10);
+    }
+
+    REPLACED(CARDInitCallback)(taskInfo);
+}
 
 extern "C" s32 CARDFreeBlocks(s32 chan, s32 *bytesNotUsed, s32 *filesNotUsed) {
     if (s_virtualCards[chan]) {
