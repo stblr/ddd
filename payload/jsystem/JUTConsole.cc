@@ -5,9 +5,9 @@ extern "C" {
 }
 
 void JUTConsole::print(const char *message) {
-    if (m_outputFlag & JUTConsole::OutputFlag::OSReport) {
+    /*if (m_outputFlag & JUTConsole::OutputFlag::OSReport) {
         OSReport("%s", message);
-    }
+    }*/
 
     REPLACED(print)(message);
 }

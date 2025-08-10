@@ -134,9 +134,11 @@
 800b2fec ARQInit
 800b305c ARQPostRequest
 800b31f0 DSPSendMailToDSP
+800b3bcc __CARDReadStatus
 800b4834 CARDFreeBlocks
 800b74c8 CARDCheck
 800b75e8 CARDProbeEx
+800b7cac CARDMountAsync
 800b7e4c CARDMount
 800b7f30 CARDUnmount
 800b8778 CARDFormat
@@ -167,6 +169,7 @@
 800c3d58 EXISync
 800c3fa4 EXIClearInterrupts
 800c4068 __EXIProbe
+800c425c EXIProbeEx
 800c4310 EXIAttach
 800c441c EXIDetach
 800c44d8 EXISelect
@@ -250,6 +253,7 @@
 800e967c OSLockMutex
 800e9758 OSUnlockMutex
 800ea670 __OSLockSram
+800ea6cc __OSLockSramEx
 800eaa64 __OSUnlockSram
 800eafb8 SystemCallVector
 800eafd8 OSInitSystemCall

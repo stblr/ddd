@@ -77,9 +77,9 @@ void Payload::Run(Context *context) {
     ArchiveStorage::Init("larc:", context->localizedArchive, context->localizedArchiveSize);
     INFO("Initialized localized archive storage.");
 
-    INFO("Initializing EXI SD storage...");
+    /*INFO("Initializing EXI SD storage...");
     EXISDStorage::Init();
-    INFO("Initialized EXI SD storage.");
+    INFO("Initialized EXI SD storage.");*/
 
     if (!Platform::IsGameCube()) {
         INFO("Initializing USB storage...");

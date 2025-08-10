@@ -7,6 +7,9 @@ extern "C" {
 #include <cube/Memory.hh>
 #include <cube/Platform.hh>
 #include <payload/Lock.hh>
+extern "C" {
+#include <portable/Log.h>
+}
 
 extern "C" {
 #include <string.h>
@@ -40,6 +43,17 @@ extern "C" EXIControl Ecb[];
 extern "C" volatile EXIChannel exi[3];
 
 extern "C" BOOL __EXIProbe(s32 chan);
+
+extern bool b;
+
+s32 EXIProbeEx(s32 chan) {
+    if (b)
+    INFO("EXIProbeEx %d", chan);
+    s32 result = REPLACED(EXIProbeEx)(chan);
+    if (b)
+    INFO("EXIProbeEx %d %d", chan, result);
+    return result;
+}
 
 void EXIProbeReset(void) {
     exiProbeStartTimes[0] = 0;
@@ -81,6 +95,24 @@ BOOL EXIImm(s32 chan, void *buf, s32 len, u32 type, EXICallback callback) {
     Ecb[chan].len = type == EXI_WRITE ? 0 : len;
     exi[chan].cr = (len - 1) << 4 | type << 2 | 1 << 0;
     return true;
+}
+
+BOOL EXILock(s32 chan, u32 dev, EXICallback unlockedCallback) {
+    /*if (b)
+    INFO("EXILock %d %u %p", chan, dev, unlockedCallback);*/
+    BOOL result = REPLACED(EXILock)(chan, dev, unlockedCallback);
+    /*if (b)
+    INFO("EXILock %d", result);*/
+    return result;
+}
+
+s32 EXIGetID(s32 chan, u32 dev, u32 *id) {
+    if (b)
+    INFO("EXIGetID %d %u %p", chan, dev, id);
+    s32 result = REPLACED(EXIGetID)(chan, dev, id);
+    if (b)
+    INFO("EXIGetID %d %u %p %d", chan, dev, id, result);
+    return result;
 }
 
 s32 EXIGetType(s32 chan, u32 dev, u32 *type) {

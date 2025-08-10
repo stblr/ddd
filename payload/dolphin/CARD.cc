@@ -3,9 +3,19 @@ extern "C" {
 }
 
 #include <payload/VirtualCard.hh>
+#include <portable/Log.hh>
 
 static Array<VirtualCard *, CARD_NUM_CHANS> s_virtualCards(nullptr);
 static Array<VirtualCard *, CARD_NUM_CHANS> s_nextVirtualCards(nullptr);
+bool b = false;
+
+extern "C" s32 REPLACED(__CARDReadStatus)(s32 chan, u8 *status);
+extern "C" REPLACE s32 __CARDReadStatus(s32 chan, u8 *status) {
+    INFO("CARDReadStatus %d %p", chan, status);
+    s32 result = REPLACED(__CARDReadStatus)(chan, status);
+    INFO("CARDReadStatus %d %p %u %d", chan, status, *status, result);
+    return result;
+}
 
 extern "C" s32 CARDFreeBlocks(s32 chan, s32 *bytesNotUsed, s32 *filesNotUsed) {
     if (s_virtualCards[chan]) {
@@ -24,23 +34,43 @@ extern "C" s32 CARDCheck(s32 chan) {
 }
 
 extern "C" s32 CARDProbeEx(s32 chan, s32 *memSize, s32 *sectorSize) {
-    if (REPLACED(CARDProbeEx)(chan, memSize, sectorSize) == CARD_RESULT_READY) {
+    /*if (b)
+    INFO("CARDProbeEx %d %p %p", chan, memSize, sectorSize);*/
+    s32 result = REPLACED(CARDProbeEx)(chan, memSize, sectorSize);
+    if (b)
+    INFO("CARDProbeEx %d %d", chan, result);
+    if (result == CARD_RESULT_READY) {
         s_nextVirtualCards[chan] = nullptr;
         return CARD_RESULT_READY;
     }
 
     s_nextVirtualCards[chan] = VirtualCard::Instance(chan);
-    return s_nextVirtualCards[chan]->probeEx(memSize, sectorSize);
+    result = s_nextVirtualCards[chan]->probeEx(memSize, sectorSize);
+    if (b)
+    INFO("CARDProbeEx (virtual) %d %d", chan, result);
+    return result;
 }
 
 extern "C" s32 CARDMount(s32 chan, void *workArea, CARDCallback detachCallback) {
+    b = true;
     s_virtualCards[chan] = s_nextVirtualCards[chan];
 
     if (s_virtualCards[chan]) {
         return s_virtualCards[chan]->mount(workArea, detachCallback);
     }
 
-    return REPLACED(CARDMount)(chan, workArea, detachCallback);
+    INFO("CARDMount %d %p %p", chan, workArea, detachCallback);
+    s32 result = REPLACED(CARDMount)(chan, workArea, detachCallback);
+    INFO("CARDMount %d", result);
+    return result;
+}
+
+extern "C" s32 REPLACED(CARDMountAsync)(s32 chan, void *workArea, CARDCallback detachCallback, void *ptr);
+extern "C" REPLACE s32 CARDMountAsync(s32 chan, void *workArea, CARDCallback detachCallback, void *ptr) {
+    INFO("CARDMountAsync %d %p %p %p", chan, workArea, detachCallback, ptr);
+    s32 result = REPLACED(CARDMountAsync)(chan, workArea, detachCallback, ptr);
+    INFO("CARDMountAsync %d", result);
+    return result;
 }
 
 extern "C" s32 CARDUnmount(s32 chan) {
@@ -64,7 +94,9 @@ extern "C" s32 CARDFastOpen(s32 chan, s32 fileNo, CARDFileInfo *fileInfo) {
         return s_virtualCards[chan]->fastOpen(fileNo, fileInfo);
     }
 
-    return REPLACED(CARDFastOpen)(chan, fileNo, fileInfo);
+    s32 result = REPLACED(CARDFastOpen)(chan, fileNo, fileInfo);
+    DEBUG("CARDFastOpen %d", result);
+    return result;
 }
 
 extern "C" s32 CARDOpen(s32 chan, const char *fileName, CARDFileInfo *fileInfo) {
@@ -72,7 +104,9 @@ extern "C" s32 CARDOpen(s32 chan, const char *fileName, CARDFileInfo *fileInfo) 
         return s_virtualCards[chan]->open(fileName, fileInfo);
     }
 
-    return REPLACED(CARDOpen)(chan, fileName, fileInfo);
+    s32 result = REPLACED(CARDOpen)(chan, fileName, fileInfo);
+    DEBUG("CARDOpen %d", result);
+    return result;
 }
 
 extern "C" s32 CARDClose(CARDFileInfo *fileInfo) {
@@ -96,7 +130,9 @@ extern "C" s32 CARDRead(CARDFileInfo *fileInfo, void *addr, s32 length, s32 offs
         return s_virtualCards[fileInfo->chan]->read(fileInfo, addr, length, offset);
     }
 
-    return REPLACED(CARDRead)(fileInfo, addr, length, offset);
+    s32 result = REPLACED(CARDRead)(fileInfo, addr, length, offset);
+    DEBUG("CARDRead %d", result);
+    return result;
 }
 
 extern "C" s32 CARDWrite(CARDFileInfo *fileInfo, const void *addr, s32 length, s32 offset) {
@@ -128,7 +164,9 @@ extern "C" s32 CARDGetStatus(s32 chan, s32 fileNo, CARDStat *stat) {
         return s_virtualCards[chan]->getStatus(fileNo, stat);
     }
 
-    return REPLACED(CARDGetStatus)(chan, fileNo, stat);
+    s32 result = REPLACED(CARDGetStatus)(chan, fileNo, stat);
+    DEBUG("CARDGetStatus %d", result);
+    return result;
 }
 
 extern "C" s32 CARDSetStatus(s32 chan, s32 fileNo, CARDStat *stat) {
