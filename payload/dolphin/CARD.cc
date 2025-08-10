@@ -5,9 +5,11 @@ extern "C" {
 #include "dolphin/DSP.h"
 
 #include <cube/DCache.hh>
+#include <cube/Memory.hh>
 #include <cube/Platform.hh>
 #include <payload/VirtualCard.hh>
 #include <portable/Bytes.hh>
+#include <portable/Log.hh> // FIXME
 
 struct CARDControl {
     u8 _000[0x030 - 0x000];
@@ -25,13 +27,29 @@ extern "C" REPLACE void CARDInitCallback(DSPTaskInfo *taskInfo) {
     if (!Platform::IsGameCube()) {
         CARDControl *card = container_of(taskInfo, CARDControl, taskInfo);
         u8 *workArea = card->workArea;
-        u32 address = Bytes::ReadBE<u32>(workArea, 0x08);
-        address |= 0x10000000;
-        Bytes::WriteBE<u32>(workArea, 0x08, address);
+        INFO("%p", workArea);
+        u32 inputAddr = Bytes::ReadBE<u32>(workArea, 0x00);
+        u32 aramAddr = Bytes::ReadBE<u32>(workArea, 0x08);
+        u32 outputAddr = Bytes::ReadBE<u32>(workArea, 0x0c);
+        INFO("%08x %08x %08x", inputAddr, aramAddr, outputAddr);
+        inputAddr = Memory::CachedToPhysical(reinterpret_cast<void *>(inputAddr)) | 0x80000000;
+        aramAddr |= 0x10000000;
+        outputAddr = Memory::CachedToPhysical(reinterpret_cast<void *>(outputAddr)) | 0x80000000;
+        INFO("%08x %08x %08x", inputAddr, aramAddr, outputAddr);
+        Bytes::WriteBE<u32>(workArea, 0x00, inputAddr);
+        Bytes::WriteBE<u32>(workArea, 0x08, aramAddr);
+        Bytes::WriteBE<u32>(workArea, 0x0c, outputAddr);
         DCache::Flush(workArea, 0x10);
+        card->workArea = reinterpret_cast<u8 *>(Memory::CachedToPhysical(workArea));
     }
 
     REPLACED(CARDInitCallback)(taskInfo);
+
+    if (!Platform::IsGameCube()) {
+        CARDControl *card = container_of(taskInfo, CARDControl, taskInfo);
+        u8 *workArea = card->workArea;
+        card->workArea = Memory::PhysicalToCached<u8>(reinterpret_cast<uintptr_t>(workArea));
+    }
 }
 
 extern "C" s32 CARDFreeBlocks(s32 chan, s32 *bytesNotUsed, s32 *filesNotUsed) {
