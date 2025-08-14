@@ -7,6 +7,7 @@ extern "C" {
 #include <cube/Memory.hh>
 #include <cube/Platform.hh>
 #include <payload/Lock.hh>
+#include <portable/Log.hh>
 
 extern "C" {
 #include <string.h>
@@ -39,7 +40,13 @@ extern "C" EXIControl Ecb[];
 
 extern "C" volatile EXIChannel exi[3];
 
-extern "C" BOOL __EXIProbe(s32 chan);
+extern "C" BOOL REPLACED(__EXIProbe)(s32 chan);
+extern "C" REPLACE BOOL __EXIProbe(s32 chan) {
+    BOOL result = REPLACED(__EXIProbe)(chan);
+    if (chan == 0)
+        DEBUG("%d", result);
+    return result;
+}
 
 void EXIProbeReset(void) {
     exiProbeStartTimes[0] = 0;
@@ -81,6 +88,12 @@ BOOL EXIImm(s32 chan, void *buf, s32 len, u32 type, EXICallback callback) {
     Ecb[chan].len = type == EXI_WRITE ? 0 : len;
     exi[chan].cr = (len - 1) << 4 | type << 2 | 1 << 0;
     return true;
+}
+
+s32 EXIGetID(s32 chan, u32 dev, u32 *id) {
+    s32 result = REPLACED(EXIGetID)(chan, dev, id);
+    DEBUG("GetID %d", result);
+    return result;
 }
 
 s32 EXIGetType(s32 chan, u32 dev, u32 *type) {

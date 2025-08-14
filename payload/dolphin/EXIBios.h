@@ -28,6 +28,7 @@ BOOL EXIClearInterrupts(s32 chan, BOOL exi, BOOL tc, BOOL ext);
 BOOL EXILock(s32 chan, u32 dev, EXICallback unlockedCallback);
 BOOL EXIUnlock(s32 chan);
 
-s32 EXIGetID(s32 chan, u32 dev, u32 *id);
+s32 REPLACED(EXIGetID)(s32 chan, u32 dev, u32 *id);
+REPLACE s32 EXIGetID(s32 chan, u32 dev, u32 *id);
 s32 REPLACED(EXIGetType)(s32 chan, u32 dev, u32 *type);
 REPLACE s32 EXIGetType(s32 chan, u32 dev, u32 *type);
