@@ -8,6 +8,7 @@ extern "C" {
 #include <dolphin/OSThread.h>
 }
 #include <payload/Mutex.hh>
+#include <portable/Log.hh>
 
 void EXISDStorage::Init() {
     for (u32 i = 0; i < s_instances.count(); i++) {
@@ -47,9 +48,15 @@ void EXISDStorage::poll() {
         }
     } else {
         m_wasDetached = false;
+        if (m_channel == 0)
+            DEBUG("a");
         if (m_channel == 2 || EXIAttach(m_channel, HandleEXT)) {
+            if (m_channel == 0)
+                DEBUG("b");
             pollAdd();
         }
+        if (m_channel == 0)
+            DEBUG("c");
         if (!isContained() && m_channel != 2) {
             EXIDetach(m_channel);
         }

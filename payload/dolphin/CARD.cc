@@ -1,8 +1,8 @@
 extern "C" {
 #include "CARD.h"
-}
 
 #include "dolphin/DSP.h"
+}
 
 #include <cube/DCache.hh>
 #include <cube/Memory.hh>
@@ -24,9 +24,9 @@ static Array<VirtualCard *, CARD_NUM_CHANS> s_nextVirtualCards(nullptr);
 
 extern "C" void REPLACED(CARDInitCallback)(DSPTaskInfo *taskInfo);
 extern "C" REPLACE void CARDInitCallback(DSPTaskInfo *taskInfo) {
+    CARDControl *card = container_of(taskInfo, CARDControl, taskInfo);
+    u8 *workArea = card->workArea;
     if (!Platform::IsGameCube()) {
-        CARDControl *card = container_of(taskInfo, CARDControl, taskInfo);
-        u8 *workArea = card->workArea;
         INFO("%p", workArea);
         u32 inputAddr = Bytes::ReadBE<u32>(workArea, 0x00);
         u32 aramAddr = Bytes::ReadBE<u32>(workArea, 0x08);
@@ -40,16 +40,12 @@ extern "C" REPLACE void CARDInitCallback(DSPTaskInfo *taskInfo) {
         Bytes::WriteBE<u32>(workArea, 0x08, aramAddr);
         Bytes::WriteBE<u32>(workArea, 0x0c, outputAddr);
         DCache::Flush(workArea, 0x10);
-        card->workArea = reinterpret_cast<u8 *>(Memory::CachedToPhysical(workArea));
     }
 
-    REPLACED(CARDInitCallback)(taskInfo);
-
-    if (!Platform::IsGameCube()) {
-        CARDControl *card = container_of(taskInfo, CARDControl, taskInfo);
-        u8 *workArea = card->workArea;
-        card->workArea = Memory::PhysicalToCached<u8>(reinterpret_cast<uintptr_t>(workArea));
-    }
+    DSPSendMailToDSP(0xff000000);
+    while (DSPCheckMailToDSP()) {}
+    DSPSendMailToDSP(Memory::CachedToPhysical(workArea));
+    while (DSPCheckMailToDSP()) {}
 }
 
 extern "C" s32 CARDFreeBlocks(s32 chan, s32 *bytesNotUsed, s32 *filesNotUsed) {
@@ -85,6 +81,7 @@ extern "C" s32 CARDMount(s32 chan, void *workArea, CARDCallback detachCallback) 
         return s_virtualCards[chan]->mount(workArea, detachCallback);
     }
 
+    INFO("Mount");
     return REPLACED(CARDMount)(chan, workArea, detachCallback);
 }
 
@@ -93,6 +90,7 @@ extern "C" s32 CARDUnmount(s32 chan) {
         return s_virtualCards[chan]->unmount();
     }
 
+    INFO("Unmount");
     return REPLACED(CARDUnmount)(chan);
 }
 
@@ -109,6 +107,7 @@ extern "C" s32 CARDFastOpen(s32 chan, s32 fileNo, CARDFileInfo *fileInfo) {
         return s_virtualCards[chan]->fastOpen(fileNo, fileInfo);
     }
 
+    INFO("FastOpen %d", fileNo);
     return REPLACED(CARDFastOpen)(chan, fileNo, fileInfo);
 }
 
@@ -117,6 +116,7 @@ extern "C" s32 CARDOpen(s32 chan, const char *fileName, CARDFileInfo *fileInfo) 
         return s_virtualCards[chan]->open(fileName, fileInfo);
     }
 
+    INFO("Open %s", fileName);
     return REPLACED(CARDOpen)(chan, fileName, fileInfo);
 }
 
@@ -125,6 +125,7 @@ extern "C" s32 CARDClose(CARDFileInfo *fileInfo) {
         return s_virtualCards[fileInfo->chan]->close(fileInfo);
     }
 
+    //INFO("Close");
     return REPLACED(CARDClose)(fileInfo);
 }
 
@@ -133,6 +134,7 @@ extern "C" s32 CARDCreate(s32 chan, const char *fileName, u32 size, CARDFileInfo
         return s_virtualCards[chan]->create(fileName, size, fileInfo);
     }
 
+    INFO("Create");
     return REPLACED(CARDCreate)(chan, fileName, size, fileInfo);
 }
 
@@ -141,7 +143,34 @@ extern "C" s32 CARDRead(CARDFileInfo *fileInfo, void *addr, s32 length, s32 offs
         return s_virtualCards[fileInfo->chan]->read(fileInfo, addr, length, offset);
     }
 
-    return REPLACED(CARDRead)(fileInfo, addr, length, offset);
+    s32 result = REPLACED(CARDRead)(fileInfo, addr, length, offset);
+    //INFO("Read %d", result);
+    return result;
+}
+
+static s32 seekResult;
+
+extern "C" s32 REPLACED(__CARDSeek)(u32 r3, u32 r4, u32 r5, u32 r6);
+extern "C" REPLACE s32 __CARDSeek(u32 r3, u32 r4, u32 r5, u32 r6) {
+    seekResult = REPLACED(__CARDSeek)(r3, r4, r5, r6);
+    return seekResult;
+}
+
+static s32 eraseSectorResult;
+static u32 eraseSectorCount;
+
+extern "C" s32 REPLACED(__CARDEraseSector)(u32 r3, u32 r4, u32 r5);
+extern "C" REPLACE s32 __CARDEraseSector(u32 r3, u32 r4, u32 r5) {
+    eraseSectorResult = REPLACED(__CARDEraseSector)(r3, r4, r5);
+    eraseSectorCount++;
+    return eraseSectorResult;
+}
+
+extern "C" s32 REPLACED(CARDWriteAsync)(CARDFileInfo *fileInfo, const void *addr, s32 length, s32 offset, void *r7);
+extern "C" REPLACE s32 CARDWriteAsync(CARDFileInfo *fileInfo, const void *addr, s32 length, s32 offset, void *r7) {
+    s32 result = REPLACED(CARDWriteAsync)(fileInfo, addr, length, offset, r7);
+    DEBUG("WriteAsync %d", result);
+    return result;
 }
 
 extern "C" s32 CARDWrite(CARDFileInfo *fileInfo, const void *addr, s32 length, s32 offset) {
@@ -149,7 +178,14 @@ extern "C" s32 CARDWrite(CARDFileInfo *fileInfo, const void *addr, s32 length, s
         return s_virtualCards[fileInfo->chan]->write(fileInfo, addr, length, offset);
     }
 
-    return REPLACED(CARDWrite)(fileInfo, addr, length, offset);
+    seekResult = 12345678;
+    eraseSectorResult = 12345678;
+    eraseSectorCount++;
+    s32 result = REPLACED(CARDWrite)(fileInfo, addr, length, offset);
+    DEBUG("Seek %d", seekResult);
+    DEBUG("EraseSector %d %u", eraseSectorResult, eraseSectorCount);
+    DEBUG("Write %d", result);
+    return result;
 }
 
 extern "C" s32 CARDFastDelete(s32 chan, s32 fileNo) {
@@ -157,6 +193,7 @@ extern "C" s32 CARDFastDelete(s32 chan, s32 fileNo) {
         return s_virtualCards[chan]->fastRemove(fileNo);
     }
 
+    //INFO("FastDelete");
     return REPLACED(CARDFastDelete)(chan, fileNo);
 }
 
@@ -165,6 +202,7 @@ extern "C" s32 CARDDelete(s32 chan, const char *fileName) {
         return s_virtualCards[chan]->remove(fileName);
     }
 
+    //INFO("Delete");
     return REPLACED(CARDDelete)(chan, fileName);
 }
 
@@ -173,6 +211,7 @@ extern "C" s32 CARDGetStatus(s32 chan, s32 fileNo, CARDStat *stat) {
         return s_virtualCards[chan]->getStatus(fileNo, stat);
     }
 
+    INFO("GetStatus %d", fileNo);
     return REPLACED(CARDGetStatus)(chan, fileNo, stat);
 }
 
@@ -181,6 +220,7 @@ extern "C" s32 CARDSetStatus(s32 chan, s32 fileNo, CARDStat *stat) {
         return s_virtualCards[chan]->setStatus(fileNo, stat);
     }
 
+    //INFO("SetStatus");
     return REPLACED(CARDSetStatus)(chan, fileNo, stat);
 }
 
@@ -189,5 +229,6 @@ extern "C" s32 CARDRename(s32 chan, const char *oldName, const char *newName) {
         return s_virtualCards[chan]->rename(oldName, newName);
     }
 
+    //INFO("Rename");
     return REPLACED(CARDRename)(chan, oldName, newName);
 }
