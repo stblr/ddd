@@ -4,6 +4,7 @@
 #include "game/SceneCharacterSelect.hh"
 #include "game/SceneCoursePoll.hh"
 #include "game/SceneFormatSelect.hh"
+#include "game/SceneGhostLoad.hh"
 #include "game/SceneHowManyPlayers.hh"
 #include "game/SceneMapSelect.hh"
 #include "game/SceneModeSelect.hh"
@@ -97,6 +98,9 @@ void SceneFactory::loadData(s32 sceneType, JKRHeap *heap) {
         REPLACED(loadData)(SceneType::LanEntry, heap);
         loadLocalizedArchive(ArchiveType::CourseSelect, "CourseSelect", heap);
         return;
+    case SceneType::GhostLoad:
+        REPLACED(loadData)(SceneType::GhostCheckSave, heap);
+        return;
     }
 
     REPLACED(loadData)(sceneType, heap);
@@ -178,6 +182,10 @@ Scene *SceneFactory::createScene(s32 sceneType, JKRHeap *heap) {
     case SceneType::CoursePoll:
         sysDebug->setHeapGroup("CoursePoll", heap);
         scene = new (heap, 0x0) SceneCoursePoll(m_archives[ArchiveType::MapSelect], heap);
+        break;
+    case SceneType::GhostLoad:
+        sysDebug->setHeapGroup("GhostLoad", heap);
+        scene = new (heap, 0x0) SceneGhostLoad(m_archives[ArchiveType::GhostData], heap);
         break;
     default:
         return REPLACED(createScene)(sceneType, heap);

@@ -15,8 +15,13 @@ public:
     void calc() override;
 
 private:
+    void REPLACED(nextScene)();
+    REPLACE void nextScene();
+
     u8 _00c[0x27c - 0x00c];
     J2DScreen *m_underScreen;
-    u8 _280[0x398 - 0x280];
+    u8 _280[0x350 - 0x280];
+    u32 m_nextScene;
+    u8 _354[0x398 - 0x354];
 };
 size_assert(SceneCourseSelect, 0x398);

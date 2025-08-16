@@ -380,6 +380,7 @@
 80167888 isCancel__17CharacterSelect3DFl
 801678dc isNext__17CharacterSelect3DFl
 80168eb8 init__17SceneCourseSelectFv
+8016a3d4 nextScene__17SceneCourseSelectFv
 801737cc stateNextBattle__14SceneMapSelectFv
 80173d50 __ct__12BattleName2DFP10JKRArchive
 80173e34 getBattleNameTexture__12BattleName2DFUl

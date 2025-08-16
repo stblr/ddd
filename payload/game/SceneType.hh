@@ -10,7 +10,7 @@ public:
         PackSelect = 0x04, // Modified
         Record = 0x05,
         Map = 0x06,
-        GhostLoadSave = 0x07,
+        GhostCheckSave = 0x07, // Modified
         LanEntry = 0x08,
         Secret = 0x09,
         None = 0x0b,
@@ -29,7 +29,8 @@ public:
         CharacterSelect = 0x19, // Added
         MapSelect = 0x1a,       // Moved
         CoursePoll = 0x1b,      // Added
-        Count = 0x1c,
+        GhostLoad = 0x1c,       // Added
+        Count = 0x1d,
     };
 
 private:
