@@ -14,7 +14,12 @@ public:
             SelectMode = 0x2,
             SelectTandem = 0x3,
             SelectCourse = 0x4,
+            SelectBattle = 0x5,
+            SelectCup = 0x6,
             SelectMap = 0x7,
+            CheckGhostData = 0x8,
+            LoadGhostData = 0x9,
+            SaveGhostData = 0xa,
             Count = 0xb,
         };
 
