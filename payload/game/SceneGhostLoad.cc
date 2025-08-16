@@ -1,23 +1,23 @@
 #include "SceneGhostLoad.hh"
 
+#include "game/AppMgr.hh"
+#include "game/GameAudioMain.hh"
 #include "game/GhostAction.hh"
 #include "game/MenuBackground.hh"
 #include "game/MenuTitleLine.hh"
+#include "game/RaceApp.hh"
 #include "game/SceneGhostCheckSave.hh"
 #include "game/SequenceApp.hh"
+#include "game/SequenceInfo.hh"
+#include "game/System.hh"
 
-SceneGhostLoad::SceneGhostLoad(JKRArchive *archive, JKRHeap *heap) : Scene(archive, heap) {
-    m_selectSlot.setup(archive, heap);
-}
+SceneGhostLoad::SceneGhostLoad(JKRArchive *archive, JKRHeap *heap)
+    : Scene(archive, heap), m_selectSlot(SceneGhostCheckSave::Instance()->selectSlot()) {}
 
 SceneGhostLoad::~SceneGhostLoad() {}
 
 void SceneGhostLoad::init() {
-    SceneGhostCheckSave::Instance()->m_ghostAction = GhostAction::Load;
-
-    m_selectSlot.init();
-
-    slideIn();
+    wait();
 }
 
 void SceneGhostLoad::draw() {
@@ -63,13 +63,22 @@ void SceneGhostLoad::nextScene() {
     m_state = &SceneGhostLoad::stateNextScene;
 }
 
+void SceneGhostLoad::nextRace() {
+    m_state = &SceneGhostLoad::stateNextRace;
+}
+
 void SceneGhostLoad::stateWait() {
     if (m_selectSlot.isWaiting()) {
         return;
     }
 
     if (m_selectSlot.canLoad()) {
+        m_selectSlot.initLoad();
         slideIn();
+    } else {
+        GameAudio::Main::Instance()->fadeOutAll(15);
+        System::GetDisplay()->startFadeOut(15);
+        nextRace();
     }
 }
 
@@ -89,4 +98,14 @@ void SceneGhostLoad::stateNextScene() {
     }
 
     SequenceApp::Instance()->setNextScene(m_nextScene);
+}
+
+void SceneGhostLoad::stateNextRace() {
+    if (!SequenceApp::Instance()->checkFinishAllLoading()) {
+        return;
+    }
+
+    AppMgr::Request(AppMgr::Request::DestroyApp);
+    RaceApp::Call();
+    SequenceInfo::Instance().m_ghostAction = GhostAction::None;
 }

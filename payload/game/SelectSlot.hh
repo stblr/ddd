@@ -17,6 +17,7 @@ public:
     void draw(const J2DGraphContext *graphContext);
     void processCards();
     void calcAnm();
+    void initLoad();
     void frameIn();
 
 private:
@@ -38,6 +39,7 @@ private:
         bool isWaiting() const;
         bool canLoad() const;
         void calcAnm();
+        void select();
 
     private:
         class State {
@@ -60,8 +62,36 @@ private:
     };
     size_assert(Card, 0x1064);
 
+    class QuitBtn {
+    public:
+        QuitBtn();
+        ~QuitBtn();
+
+        void calcAnm();
+        void deselect();
+
+    private:
+        class State {
+        public:
+            enum {
+                Selected = 0,
+                Selectable = 1,
+            };
+
+        private:
+            State();
+        };
+
+        u32 m_state;
+        u8 _04[0x3a - 0x04];
+    };
+    size_assert(QuitBtn, 0x3c);
+
     J2DScreen *m_screen;
     Array<Card, 2> m_cards;
-    u8 _20cc[0x2114 - 0x20cc];
+    QuitBtn m_quitBtn;
+    u8 _2108[0x2112 - 0x2108];
+    u8 m_slotIndex;
+    bool m_isQuitBtnSelected;
 };
 size_assert(SelectSlot, 0x2114);

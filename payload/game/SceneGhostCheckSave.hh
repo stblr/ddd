@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/Scene.hh"
+#include "game/SelectSlot.hh"
 
 class SceneGhostCheckSave : public Scene {
 public:
@@ -10,14 +11,19 @@ public:
     void draw() override;
     void calc() override;
 
+    SelectSlot &selectSlot();
+
     static SceneGhostCheckSave *Instance();
 
 private:
-    u8 _000c[0x253c - 0x000c];
+    void REPLACED(checkCard)();
+    REPLACE void checkCard();
 
-public:
+    u8 _000c[0x0014 - 0x000c];
+    SelectSlot m_selectSlot;
+    u8 _2128[0x253c - 0x2128];
     u32 m_ghostAction;
 
-private:
     static SceneGhostCheckSave *s_instance;
 };
+size_assert(SceneGhostCheckSave, 0x2540);
