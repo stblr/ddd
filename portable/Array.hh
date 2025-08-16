@@ -68,6 +68,26 @@ public:
         }
     }
 
+    template <typename P>
+    bool any(P predicate) const {
+        for (size_t index = 0; index < N; index++) {
+            if ((m_values[index].*predicate)()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    template <typename P>
+    bool all(P predicate) const {
+        for (size_t index = 0; index < N; index++) {
+            if (!(m_values[index].*predicate)()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 private:
     T m_values[N];
 };

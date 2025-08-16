@@ -381,6 +381,12 @@
 801678dc isNext__17CharacterSelect3DFl
 80168eb8 init__17SceneCourseSelectFv
 8016a3d4 nextScene__17SceneCourseSelectFv
+8016c0ec calcAnm__Q210SelectSlot4CardFv
+8016c890 setup__10SelectSlotFP10JKRArchiveP7JKRHeap
+8016cd54 init__10SelectSlotFv
+8016cffc processCards__10SelectSlotFv
+8016d70c frameIn__10SelectSlotFv
+8016eee0 __ct__Q210SelectSlot4CardFv
 801737cc stateNextBattle__14SceneMapSelectFv
 80173d50 __ct__12BattleName2DFP10JKRArchive
 80173e34 getBattleNameTexture__12BattleName2DFUl
@@ -561,6 +567,7 @@
 803d5578 s_instance__12SceneFactory
 803d5580 s_instance__6Race2D
 803d55e0 s_instance__17CharacterSelect3D
+803d55f0 s_instance__19SceneGhostCheckSave
 803d5600 s_instance__12BattleName2D
 803d5630 s_manager__8SysDebug
 803d5ab0 s_instance__11MoviePlayer

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/Scene.hh"
+#include "game/SelectSlot.hh"
 
 class SceneGhostLoad : public Scene {
 public:
@@ -13,11 +14,13 @@ public:
 private:
     typedef void (SceneGhostLoad::*State)();
 
+    void wait();
     void slideIn();
     void slideOut();
     void idle();
     void nextScene();
 
+    void stateWait();
     void stateSlideIn();
     void stateSlideOut();
     void stateIdle();
@@ -25,4 +28,5 @@ private:
 
     State m_state;
     u32 m_nextScene;
+    SelectSlot m_selectSlot;
 };
