@@ -21,7 +21,13 @@ public:
     u8 : 4;
 
 private:
-    u8 _02b[0x038 - 0x02b];
+    u8 _02b[0x034 - 0x02b];
+
+public:
+    u8 m_ghostAction;
+
+private:
+    u8 _035[0x038 - 0x035];
     u32 m_battleMode;
 
 public:

@@ -19,14 +19,16 @@ private:
     void slideOut();
     void idle();
     void nextScene();
+    void nextRace();
 
     void stateWait();
     void stateSlideIn();
     void stateSlideOut();
     void stateIdle();
     void stateNextScene();
+    void stateNextRace();
 
     State m_state;
     u32 m_nextScene;
-    SelectSlot m_selectSlot;
+    SelectSlot &m_selectSlot;
 };

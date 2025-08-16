@@ -20,7 +20,20 @@ void SelectSlot::calcAnm() {
     for (u32 i = 0; i < m_cards.count(); i++) {
         m_cards[i].calcAnm();
     }
+    m_quitBtn.calcAnm();
     m_screen->animation();
+}
+
+void SelectSlot::initLoad() {
+    for (u32 i = 0; i < m_cards.count(); i++) {
+        if (m_cards[i].canLoad()) {
+            m_cards[i].select();
+            m_quitBtn.deselect();
+            m_slotIndex = i;
+            return;
+        }
+    }
+    m_isQuitBtnSelected = true;
 }
 
 u8 SelectSlot::GhostFileInfoTable::count() const {
@@ -47,4 +60,16 @@ bool SelectSlot::Card::canLoad() const {
     default:
         return false;
     }
+}
+
+void SelectSlot::Card::select() {
+    m_state = State::Selected;
+}
+
+SelectSlot::QuitBtn::QuitBtn() {}
+
+SelectSlot::QuitBtn::~QuitBtn() {}
+
+void SelectSlot::QuitBtn::deselect() {
+    m_state = State::Selectable;
 }
