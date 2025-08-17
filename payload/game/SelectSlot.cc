@@ -17,10 +17,24 @@ void SelectSlot::draw(const J2DGraphContext *graphContext) {
 }
 
 void SelectSlot::calcAnm() {
+    m_anmTransformFrame = (m_anmTransformFrame + 1) % 79;
+    m_anmTransform->m_frame = m_anmTransformFrame;
     for (u32 i = 0; i < m_cards.count(); i++) {
         m_cards[i].calcAnm();
     }
     m_quitBtn.calcAnm();
+    switch (m_state) {
+    case State::FrameIn:
+        if (!hasFrameInAnm()) {
+            m_state = State::Idle;
+        }
+        break;
+    case State::FrameOut:
+        if (!hasFrameOutAnm()) {
+            m_state = State::Wait;
+        }
+        break;
+    }
     m_screen->animation();
 }
 
@@ -62,6 +76,14 @@ bool SelectSlot::Card::canLoad() const {
     }
 }
 
+bool SelectSlot::Card::hasFrameInAnm() const {
+    return m_anmState == AnmState::FrameIn;
+}
+
+bool SelectSlot::Card::hasFrameOutAnm() const {
+    return m_anmState == AnmState::FrameOut;
+}
+
 void SelectSlot::Card::select() {
     m_state = State::Selected;
 }
@@ -70,6 +92,22 @@ SelectSlot::QuitBtn::QuitBtn() {}
 
 SelectSlot::QuitBtn::~QuitBtn() {}
 
+bool SelectSlot::QuitBtn::hasFrameInAnm() const {
+    return m_anmState == AnmState::FrameIn;
+}
+
+bool SelectSlot::QuitBtn::hasFrameOutAnm() const {
+    return m_anmState == AnmState::FrameOut;
+}
+
 void SelectSlot::QuitBtn::deselect() {
     m_state = State::Selectable;
+}
+
+bool SelectSlot::hasFrameInAnm() const {
+    return m_cards.any(&Card::hasFrameInAnm) && m_quitBtn.hasFrameInAnm();
+}
+
+bool SelectSlot::hasFrameOutAnm() const {
+    return m_cards.any(&Card::hasFrameOutAnm) && m_quitBtn.hasFrameOutAnm();
 }
