@@ -38,6 +38,8 @@ private:
 
         bool isWaiting() const;
         bool canLoad() const;
+        bool hasFrameInAnm() const;
+        bool hasFrameOutAnm() const;
         void calcAnm();
         void select();
 
@@ -55,10 +57,22 @@ private:
             State();
         };
 
+        class AnmState {
+        public:
+            enum {
+                FrameIn = 1,
+                FrameOut = 2,
+            };
+
+        private:
+            AnmState();
+        };
+
         u32 m_state;
         u8 _0004[0x000c - 0x0004];
         GhostFileInfoTable m_fileInfoTable;
-        u8 _0ff4[0x1064 - 0x0ff4];
+        u32 m_anmState;
+        u8 _0ff8[0x1064 - 0x0ff8];
     };
     size_assert(Card, 0x1064);
 
@@ -67,6 +81,8 @@ private:
         QuitBtn();
         ~QuitBtn();
 
+        bool hasFrameInAnm() const;
+        bool hasFrameOutAnm() const;
         void calcAnm();
         void deselect();
 
@@ -82,15 +98,45 @@ private:
             State();
         };
 
+        class AnmState {
+        public:
+            enum {
+                FrameIn = 1,
+                FrameOut = 2,
+            };
+
+        private:
+            AnmState();
+        };
+
         u32 m_state;
-        u8 _04[0x3a - 0x04];
+        u32 m_anmState;
+        u8 _08[0x3a - 0x08];
     };
     size_assert(QuitBtn, 0x3c);
+
+    class State {
+    public:
+        enum {
+            Wait = 0,
+            FrameIn = 1,
+            Idle = 2,
+            FrameOut = 3,
+        };
+
+    private:
+        State();
+    };
+
+    bool hasFrameInAnm() const;
+    bool hasFrameOutAnm() const;
 
     J2DScreen *m_screen;
     Array<Card, 2> m_cards;
     QuitBtn m_quitBtn;
-    u8 _2108[0x2112 - 0x2108];
+    u32 m_state;
+    J2DAnmBase *m_anmTransform;
+    s16 m_anmTransformFrame;
     u8 m_slotIndex;
     bool m_isQuitBtnSelected;
 };
