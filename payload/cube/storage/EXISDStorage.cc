@@ -7,6 +7,7 @@ extern "C" {
 #include <dolphin/OSMessage.h>
 #include <dolphin/OSThread.h>
 }
+#include <payload/Lock.hh>
 #include <payload/Mutex.hh>
 #include <portable/Log.hh>
 
@@ -43,22 +44,20 @@ EXISDStorage::EXISDStorage(u32 channel)
 void EXISDStorage::poll() {
     if (isContained()) {
         pollRemove();
-        if (m_channel != 2) {
-            EXIDetach(m_channel);
-        }
+        detach();
     } else {
         m_wasDetached = false;
         if (m_channel == 0)
             DEBUG("a");
-        if (m_channel == 2 || EXIAttach(m_channel, HandleEXT)) {
+        if (attach()) {
             if (m_channel == 0)
                 DEBUG("b");
             pollAdd();
-        }
-        if (m_channel == 0)
-            DEBUG("c");
-        if (!isContained() && m_channel != 2) {
-            EXIDetach(m_channel);
+            if (m_channel == 0)
+                DEBUG("c");
+            if (!isContained()) {
+                detach();
+            }
         }
     }
     OSSendMessage(m_queue, nullptr, OS_MESSAGE_NOBLOCK);
@@ -90,6 +89,26 @@ void *EXISDStorage::transfer() {
 void EXISDStorage::handleEXT() {
     m_wasDetached = true;
     OSSendMessage(m_queue, nullptr, OS_MESSAGE_NOBLOCK);
+}
+
+bool EXISDStorage::attach() {
+    if (m_channel == 2) {
+        return true;
+    }
+    Lock<NoInterrupts> lock;
+    if (EXIGetState(m_channel) & EXI_STATE_ATTACHED) {
+        return false;
+    }
+    if (m_channel == 0)
+        DEBUG("d");
+    return EXIAttach(m_channel, HandleEXT);
+}
+
+void EXISDStorage::detach() {
+    if (m_channel == 2) {
+        return;
+    }
+    EXIDetach(m_channel);
 }
 
 bool EXISDStorage::dispatch(struct Transfer *transfer) {

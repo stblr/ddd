@@ -48,6 +48,12 @@ extern "C" REPLACE void CARDInitCallback(DSPTaskInfo *taskInfo) {
     while (DSPCheckMailToDSP()) {}
 }
 
+extern "C" void REPLACED(__CARDExtHandler)(s32 chan);
+extern "C" REPLACE void __CARDExtHandler(s32 chan) {
+    DEBUG("Ext %d", chan);
+    REPLACED(__CARDExtHandler)(chan);
+}
+
 extern "C" s32 CARDFreeBlocks(s32 chan, s32 *bytesNotUsed, s32 *filesNotUsed) {
     if (s_virtualCards[chan]) {
         return s_virtualCards[chan]->freeBlocks(bytesNotUsed, filesNotUsed);
@@ -82,7 +88,9 @@ extern "C" s32 CARDMount(s32 chan, void *workArea, CARDCallback detachCallback) 
     }
 
     INFO("Mount");
-    return REPLACED(CARDMount)(chan, workArea, detachCallback);
+    s32 result = REPLACED(CARDMount)(chan, workArea, detachCallback);
+    INFO("Mount %d", result);
+    return result;
 }
 
 extern "C" s32 CARDUnmount(s32 chan) {

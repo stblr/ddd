@@ -135,6 +135,7 @@
 800b305c ARQPostRequest
 800b31b8 DSPCheckMailToDSP
 800b31f0 DSPSendMailToDSP
+800b37f0 __CARDExtHandler
 800b454c __CARDEraseSector
 800b4834 CARDFreeBlocks
 800b5938 CARDInitCallback
@@ -178,6 +179,7 @@
 800c4604 EXIDeselect
 800c4c98 EXILock
 800c4d8c EXIUnlock
+800c4e68 EXIGetState
 800c4ea8 EXIGetID
 800c5258 EXIGetType
 800c60ac GDSetArray

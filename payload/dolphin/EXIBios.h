@@ -11,13 +11,19 @@ enum {
     EXI_RDWR = 2,
 };
 
+enum {
+    EXI_STATE_ATTACHED = 1 << 3,
+};
+
 typedef void (*EXICallback)(s32 chan, OSContext *context);
 
 BOOL EXISelect(s32 chan, u32 dev, u32 freq);
 BOOL EXIDeselect(s32 chan);
 void EXIProbeReset(void);
-BOOL EXIAttach(s32 chan, EXICallback extCallback);
-BOOL EXIDetach(s32 chan);
+BOOL REPLACED(EXIAttach)(s32 chan, EXICallback extCallback);
+REPLACE BOOL EXIAttach(s32 chan, EXICallback extCallback);
+BOOL REPLACED(EXIDetach)(s32 chan);
+REPLACE BOOL EXIDetach(s32 chan);
 BOOL REPLACED(EXIDma)(s32 chan, void *buf, s32 len, u32 type, EXICallback callback);
 REPLACE BOOL EXIDma(s32 chan, void *buf, s32 len, u32 type, EXICallback callback);
 REPLACE BOOL EXIImm(s32 chan, void *buf, s32 len, u32 type, EXICallback callback);
@@ -28,6 +34,7 @@ BOOL EXIClearInterrupts(s32 chan, BOOL exi, BOOL tc, BOOL ext);
 BOOL EXILock(s32 chan, u32 dev, EXICallback unlockedCallback);
 BOOL EXIUnlock(s32 chan);
 
+u32 EXIGetState(s32 chan);
 s32 REPLACED(EXIGetID)(s32 chan, u32 dev, u32 *id);
 REPLACE s32 EXIGetID(s32 chan, u32 dev, u32 *id);
 s32 REPLACED(EXIGetType)(s32 chan, u32 dev, u32 *type);

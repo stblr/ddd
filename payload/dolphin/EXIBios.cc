@@ -48,6 +48,20 @@ extern "C" REPLACE BOOL __EXIProbe(s32 chan) {
     return result;
 }
 
+BOOL EXIAttach(s32 chan, EXICallback extCallback) {
+    DEBUG("Attach %d %p", chan, extCallback);
+    BOOL result = REPLACED(EXIAttach)(chan, extCallback);
+    DEBUG("Attach %d %p %d", chan, extCallback, result);
+    return result;
+}
+
+BOOL EXIDetach(s32 chan) {
+    DEBUG("Detach %d", chan);
+    BOOL result = REPLACED(EXIDetach)(chan);
+    DEBUG("Detach %d %d", chan, result);
+    return result;
+}
+
 void EXIProbeReset(void) {
     exiProbeStartTimes[0] = 0;
     exiProbeStartTimes[1] = 0;
