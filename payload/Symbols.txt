@@ -269,6 +269,7 @@
 800ec0d0 OSSleepThread
 800ec1bc OSWakeupThread
 800ec36c OSGetTime
+800ec384 OSGetTick
 800ec38c OSGetSystemTime
 800ec5e4 OSTicksToCalendarTime
 800ec7e8 __init_user
@@ -524,6 +525,7 @@
 803d4aa0 s_systemHeap__7JKRHeap
 803d4aa4 s_currentHeap__7JKRHeap
 803d4aa8 s_rootHeap__7JKRHeap
+803d4b60 s_instance__10JUTProcBar
 803d4b90 s_manager__6JUTXfb
 803d4d50 s_loadThread__13JASAramStream
 803d4d54 s_readBuffer__13JASAramStream

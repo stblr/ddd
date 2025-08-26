@@ -4,7 +4,8 @@
 
 s64 OSGetTime(void);
 void OSSetTime(s64 time);
-s64 OSGetSystemTime();
+s64 OSGetSystemTime(void);
+u32 OSGetTick(void);
 
 typedef struct {
     int sec;
