@@ -18,6 +18,7 @@ extern "C" {
 }
 #include <jsystem/J2DPane.hh>
 #include <jsystem/J3DSys.hh>
+#include <jsystem/JUTProcBar.hh>
 #include <payload/CourseManager.hh>
 #include <payload/DOLBinary.hh>
 #include <payload/PayloadBinary.hh>
@@ -26,6 +27,10 @@ extern "C" {
 
 void System::Init() {
     REPLACED(Init)();
+
+    JUTProcBar *procBar = JUTProcBar::Instance();
+    procBar->m_visible = true;
+    procBar->m_heapBarVisible = true;
 
     if (!Platform::IsGameCube()) {
         SCFile sc;
@@ -91,10 +96,13 @@ void System::Run() {
         netGameMgr->framework();
         AppMgr::Draw();
 
+        JUTProcBar *procBar = JUTProcBar::Instance();
+        procBar->cpuStart();
         if (!isNetGameActive) {
             PadMgr::Framework();
         }
         AppMgr::Calc();
+        procBar->cpuEnd();
 
         s_display->endRender();
         s_display->endFrame();
