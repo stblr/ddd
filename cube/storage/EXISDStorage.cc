@@ -66,7 +66,7 @@ void EXISDStorage::pollAdd() {
 
     u8 r1;
     if (!recvR1(r1)) {
-        DEBUG("Failed to receive R1 for CMD0");
+        DEBUG("Failed to receive R1 for CMD0 %u", m_channel);
         return;
     }
 
@@ -249,31 +249,32 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
     }
 
     while (sectorCount > 0) {
-        s64 start = Clock::GetMonotonicTicks();
-        u8 token;
-        do {
-            if (Clock::GetMonotonicTicks() >= start + Clock::MillisecondsToTicks(100)) {
-                DEBUG("Timed out");
-                return false;
-            }
-
-            EXI::Device device(m_channel, 0, 5, &m_wasDetached);
-            if (!device.ok()) {
-                DEBUG("Failed to select device");
-                return false;
-            }
-
-            if (!device.immRead(&token, sizeof(token))) {
-                DEBUG("Failed to read token");
-                return false;
-            }
-        } while (token != 0xfe);
-
         EXI::Device device(m_channel, 0, 5, &m_wasDetached);
         if (!device.ok()) {
             DEBUG("Failed to select device");
             return false;
         }
+
+        s64 start = Clock::GetMonotonicTicks();
+        u8 token;
+        do {
+            s64 now = Clock::GetMonotonicTicks();
+            /*EXI::Device device(m_channel, 0, 5, &m_wasDetached);
+            if (!device.ok()) {
+                DEBUG("Failed to select device");
+                return false;
+            }*/
+
+            if (!device.immRead(&token, sizeof(token))) {
+                DEBUG("Failed to read token");
+                return false;
+            }
+
+            if (now >= start + Clock::MillisecondsToTicks(100)) {
+                DEBUG("Timed out");
+                return false;
+            }
+        } while (token != 0xfe);
 
         if (!device.immRead(buffer, SectorSize)) {
             DEBUG("Failed to read sector");
@@ -285,6 +286,7 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
             DEBUG("Failed to read CRC16");
             return false;
         }
+        //DEBUG("%04x", Bytes::ReadBE<u16>(crc16.values(), 0));
 
         if (ComputeCRC16(static_cast<u8 *>(buffer), SectorSize) !=
                 Bytes::ReadBE<u16>(crc16.values(), 0)) {
@@ -375,6 +377,7 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
         }
 
         if (!waitReady(Clock::MillisecondsToTicks(500))) {
+            DEBUG("sectorCount: %u", sectorCount);
             return false;
         }
 
@@ -532,7 +535,8 @@ bool EXISDStorage::waitReady(s64 duration) {
             return true;
         }
     } while (Clock::GetMonotonicTicks() < start + duration);
-    DEBUG("Timed out");
+    u32 ms = Clock::TicksToMilliseconds(duration);
+    DEBUG("Timed out %u", ms);
     return false;
 }
 

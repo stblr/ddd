@@ -27,6 +27,7 @@ bool VirtualDI::Mount() {
 }
 
 bool VirtualDI::Read(void *dst, u32 size, u32 offset) {
+    DEBUG("%p %x %x", dst, size, offset);
     if (!s_file->read(dst, size, offset)) {
         return false;
     }

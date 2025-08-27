@@ -7,6 +7,9 @@ void CubeLogger::vlog(u32 level, const char *shortFormat, const char * /* longFo
     Console::Color bg = Console::Color::Black;
     Console::Color fg;
     switch (level) {
+    case LOG_LEVEL_DEBUG:
+        fg = Console::Color::Cyan;
+        break;
     case LOG_LEVEL_ERROR:
         fg = Console::Color::Red;
         break;
