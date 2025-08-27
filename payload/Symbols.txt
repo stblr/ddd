@@ -229,6 +229,9 @@
 800e7068 DCFlushRange
 800e7098 DCStoreRange
 800e714c ICInvalidateRange
+800e7270 LCEnable
+800e72a8 LCDisable
+800e73a0 LCQueueWait
 800e78f4 OSSetCurrentContext
 800e79dc OSLoadContext
 800e803c OSReport
