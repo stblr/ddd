@@ -11,4 +11,5 @@ void ICInvalidateRange(void *addr, u32 nBytes);
 
 REPLACE void LCEnable(void);
 REPLACE void LCDisable(void);
+REPLACE u32 LCStoreData(void *destAddr, void *srcAddr, u32 nBytes);
 REPLACE void LCQueueWait(u32 len);
