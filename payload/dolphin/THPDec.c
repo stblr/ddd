@@ -21,6 +21,8 @@ static void THPSetFakeLCBuffer640(u8 fakeLCBuffer[THP_FAKE_LC_BUFFER_SIZE]) {
     fakeLCBuffer += 0xa00;
 }
 
+void THPInit(void) {}
+
 void THPSetFakeLCBuffer(u8 fakeLCBuffer[THP_FAKE_LC_BUFFER_SIZE]) {
     THPSetFakeLCBuffer512(fakeLCBuffer);
     THPSetFakeLCBuffer640(fakeLCBuffer);

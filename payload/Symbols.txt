@@ -282,6 +282,7 @@
 800edc60 PADControlMotor
 800eff6c SIProbe
 800f0744 DBInit
+800f7cf8 THPInit
 800fcf80 SSDPStop
 800fd10c SSDPGetState
 
