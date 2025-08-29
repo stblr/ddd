@@ -249,32 +249,32 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
     }
 
     while (sectorCount > 0) {
-        EXI::Device device(m_channel, 0, 5, &m_wasDetached);
-        if (!device.ok()) {
-            DEBUG("Failed to select device");
-            return false;
-        }
-
-        s64 start = Clock::GetMonotonicTicks();
+        //s64 start = Clock::GetMonotonicTicks();
         u8 token;
         do {
-            s64 now = Clock::GetMonotonicTicks();
-            /*EXI::Device device(m_channel, 0, 5, &m_wasDetached);
+            //s64 now = Clock::GetMonotonicTicks();
+            EXI::Device device(m_channel, 0, 5, &m_wasDetached);
             if (!device.ok()) {
                 DEBUG("Failed to select device");
                 return false;
-            }*/
+            }
 
             if (!device.immRead(&token, sizeof(token))) {
                 DEBUG("Failed to read token");
                 return false;
             }
 
-            if (now >= start + Clock::MillisecondsToTicks(100)) {
+            /*if (now >= start + Clock::MillisecondsToTicks(100)) {
                 DEBUG("Timed out");
                 return false;
-            }
+            }*/
         } while (token != 0xfe);
+
+        EXI::Device device(m_channel, 0, 5, &m_wasDetached);
+        if (!device.ok()) {
+            DEBUG("Failed to select device");
+            return false;
+        }
 
         if (!device.immRead(buffer, SectorSize)) {
             DEBUG("Failed to read sector");
@@ -521,8 +521,9 @@ bool EXISDStorage::recvR1(EXI::Device &device, u8 &r1) {
 }
 
 bool EXISDStorage::waitReady(s64 duration) {
-    s64 start = Clock::GetMonotonicTicks();
+    s64 start = Clock::GetMonotonicTicks(), now;
     do {
+        now = Clock::GetMonotonicTicks();
         EXI::Device device(m_channel, 0, 5, &m_wasDetached);
         if (!device.ok()) {
             return false;
@@ -534,7 +535,7 @@ bool EXISDStorage::waitReady(s64 duration) {
         if (ready) {
             return true;
         }
-    } while (Clock::GetMonotonicTicks() < start + duration);
+    } while (now < start + duration);
     u32 ms = Clock::TicksToMilliseconds(duration);
     DEBUG("Timed out %u", ms);
     return false;
