@@ -51,6 +51,7 @@ private:
     bool recvR1(u8 &r1);
     bool recvR3(u8 &r1, u32 &ocr);
     bool recvR7(u8 &r1, u8 &commandVersion, u8 &vhs, u8 &checkPattern);
+    bool sendCommand(EXI::Device &device, u8 command, u32 argument);
     bool recvR1(EXI::Device &device, u8 &r1);
     bool waitReady(s64 duration);
 

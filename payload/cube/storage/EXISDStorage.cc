@@ -8,6 +8,7 @@ extern "C" {
 #include <dolphin/OSThread.h>
 }
 #include <payload/Mutex.hh>
+#include <portable/Log.hh>
 
 void EXISDStorage::Init() {
     for (u32 i = 0; i < s_instances.count(); i++) {
@@ -79,6 +80,7 @@ void *EXISDStorage::transfer() {
 }
 
 void EXISDStorage::handleEXT() {
+    ERROR("handleEXT");
     m_wasDetached = true;
     OSSendMessage(m_queue, nullptr, OS_MESSAGE_NOBLOCK);
 }

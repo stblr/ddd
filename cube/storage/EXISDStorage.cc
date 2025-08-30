@@ -248,31 +248,38 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
         return false;
     }
 
+    s64 start = Clock::GetMonotonicTicks();
+    bool w = false;
     while (sectorCount > 0) {
-        //s64 start = Clock::GetMonotonicTicks();
-        u8 token;
-        do {
-            //s64 now = Clock::GetMonotonicTicks();
-            EXI::Device device(m_channel, 0, 5, &m_wasDetached);
-            if (!device.ok()) {
-                DEBUG("Failed to select device");
-                return false;
-            }
-
-            if (!device.immRead(&token, sizeof(token))) {
-                DEBUG("Failed to read token");
-                return false;
-            }
-
-            /*if (now >= start + Clock::MillisecondsToTicks(100)) {
-                DEBUG("Timed out");
-                return false;
-            }*/
-        } while (token != 0xfe);
+        s64 now = Clock::GetMonotonicTicks();
 
         EXI::Device device(m_channel, 0, 5, &m_wasDetached);
         if (!device.ok()) {
             DEBUG("Failed to select device");
+            return false;
+        }
+
+        u8 token;
+        if (!device.immRead(&token, sizeof(token))) {
+            DEBUG("Failed to read token");
+            return false;
+        }
+
+        if (now >= start + Clock::MillisecondsToTicks(1000)) {
+            if (!w) {
+                WARN("slow");
+                w = true;
+            }
+            //DEBUG("Timed out");
+            //return false;
+        }
+
+        if (token == 0xff) {
+            continue;
+        }
+
+        if (token != 0xfe) {
+            DEBUG("Invalid token %02x", token);
             return false;
         }
 
@@ -297,11 +304,8 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
         firstSector++;
         sectorCount--;
         buffer = static_cast<u8 *>(buffer) + SectorSize;
-    }
-
-    if (!sendCommand(Command::StopTransmission, 0)) {
-        DEBUG("Failed to send CMD12");
-        return false;
+        start = Clock::GetMonotonicTicks();
+        w = false;
     }
 
     {
@@ -311,25 +315,30 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
             return false;
         }
 
+        if (!sendCommand(device, Command::StopTransmission, 0)) {
+            DEBUG("Failed to send CMD12");
+            return false;
+        }
+
         u8 dummy;
         if (!device.immRead(&dummy, sizeof(dummy))) {
             DEBUG("Failed to read dummy for CMD12");
             return false;
         }
+
+        u8 r1;
+        if (!recvR1(device, r1)) {
+            DEBUG("Failed to receive R1 for CMD12");
+            return false;
+        }
+
+        if (r1) {
+            DEBUG("CMD12 error");
+            return false;
+        }
     }
 
-    u8 r1;
-    if (!recvR1(r1)) {
-        DEBUG("Failed to receive R1 for CMD12");
-        return false;
-    }
-
-    if (r1) {
-        DEBUG("CMD12 error");
-        return false;
-    }
-
-    return waitReady(Clock::MillisecondsToTicks(100));
+    return waitReady(Clock::MillisecondsToTicks(1000));
 }
 
 bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer) {
@@ -371,12 +380,19 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
             }
 
             if ((token & 0x1f) != 0x05) {
-                DEBUG("Invalid token");
+                DEBUG("Invalid token %02x", token);
+                for (u32 i = 0; i < 4; i++) {
+                    if (!device.immRead(&token, sizeof(token))) {
+                        DEBUG("Failed to read token");
+                        return false;
+                    }
+                    DEBUG("%02x", token);
+                }
                 return false;
             }
         }
 
-        if (!waitReady(Clock::MillisecondsToTicks(500))) {
+        if (!waitReady(Clock::MillisecondsToTicks(5000))) {
             DEBUG("sectorCount: %u", sectorCount);
             return false;
         }
@@ -405,7 +421,7 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
         }
     }
 
-    return waitReady(Clock::MillisecondsToTicks(500));
+    return waitReady(Clock::MillisecondsToTicks(5001));
 }
 
 bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buffer */) {
@@ -423,23 +439,28 @@ bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buf
         return false;
     }
 
-    return waitReady(sectorCount * Clock::MillisecondsToTicks(250));
+    return waitReady(sectorCount * Clock::MillisecondsToTicks(2500));
 }
 
 bool EXISDStorage::sendCommandAndRecvR1(u8 command, u32 argument) {
-    if (!sendCommand(command, argument)) {
+    EXI::Device device(m_channel, 0, 5, &m_wasDetached);
+    if (!device.ok()) {
+        return false;
+    }
+
+    if (!sendCommand(device, command, argument)) {
         DEBUG("Failed to send CMD%u", command);
         return false;
     }
 
     u8 r1;
-    if (!recvR1(r1)) {
+    if (!recvR1(device, r1)) {
         DEBUG("Failed to receive R1 for CMD%u", command);
         return false;
     }
 
     if (r1) {
-        DEBUG("CMD%u error", command);
+        DEBUG("CMD%u error %02x", command, r1);
         return false;
     }
 
@@ -451,11 +472,7 @@ bool EXISDStorage::sendCommand(u8 command, u32 argument) {
     if (!device.ok()) {
         return false;
     }
-    Array<u8, 6> buffer;
-    Bytes::WriteBE<u8>(buffer.values(), 0, 1 << 6 | command << 0);
-    Bytes::WriteBE<u32>(buffer.values(), 1, argument);
-    Bytes::WriteBE<u8>(buffer.values(), 5, ComputeCRC7(buffer.values(), 5) << 1 | 1 << 0);
-    return device.immWrite(buffer.values(), buffer.count());
+    return sendCommand(device, command, argument);
 }
 
 bool EXISDStorage::recvR1(u8 &r1) {
@@ -506,14 +523,25 @@ bool EXISDStorage::recvR7(u8 &r1, u8 &commandVersion, u8 &vhs, u8 &checkPattern)
     return true;
 }
 
+bool EXISDStorage::sendCommand(EXI::Device &device, u8 command, u32 argument) {
+    Array<u8, 6> buffer;
+    Bytes::WriteBE<u8>(buffer.values(), 0, 1 << 6 | command << 0);
+    Bytes::WriteBE<u32>(buffer.values(), 1, argument);
+    Bytes::WriteBE<u8>(buffer.values(), 5, ComputeCRC7(buffer.values(), 5) << 1 | 1 << 0);
+    return device.immWrite(buffer.values(), buffer.count());
+}
+
 bool EXISDStorage::recvR1(EXI::Device &device, u8 &r1) {
-    for (u32 i = 0; i < 8; i++) {
+    for (u32 i = 0; i < 16; i++) {
         Array<u8, 1> buffer;
         if (!device.immRead(buffer.values(), buffer.count())) {
             return false;
         }
         r1 = Bytes::ReadBE<u8>(buffer.values(), 0);
         if (!(r1 & 1 << 7)) {
+            if (i >= 8) {
+                WARN("%u", i);
+            }
             return true;
         }
     }
