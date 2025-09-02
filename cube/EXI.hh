@@ -11,6 +11,8 @@ public:
         bool ok() const;
         bool immRead(void *buffer, u32 size);
         bool immWrite(const void *buffer, u32 size);
+        bool dmaRead(void *buffer, u32 size);
+        bool dmaWrite(const void *buffer, u32 size);
 
     private:
         u32 m_channel;

@@ -1,6 +1,7 @@
 #include "EXISDStorage.hh"
 
 #include "cube/Clock.hh"
+#include "cube/Memory.hh"
 
 #include <portable/Bytes.hh>
 #include <portable/Log.hh>
@@ -254,21 +255,13 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
             return false;
         }
 
-        while (sectorCount > 0) {
+        for (u32 i = 0; i < sectorCount;) {
             u8 token;
             if (!device.immRead(&token, sizeof(token))) {
                 DEBUG("Failed to read token");
                 return false;
             }
 
-            /*if (token == 0xff) {
-                continue;
-            }
-
-            if (token != 0xfe) {
-                DEBUG("Invalid token %02x", token);
-                return false;
-            }*/
             if (token != 0xfe) {
                 continue;
             }
@@ -290,7 +283,7 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
                 return false;
             }
 
-            sectorCount--;
+            i++;
             buffer = static_cast<u8 *>(buffer) + SectorSize;
         }
 
@@ -321,17 +314,19 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
 }
 
 bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer) {
-    u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
-    if (!sendCommandAndRecvR1(Command::WriteMultipleBlock, firstBlock)) {
-        return false;
-    }
-
-    while (sectorCount > 0) {
+    for (u32 i = 0; i < sectorCount; i++) {
         {
             EXI::Device device(m_channel, 0, 5, &m_wasDetached);
             if (!device.ok()) {
                 DEBUG("Failed to select device");
                 return false;
+            }
+
+            if (i == 0) {
+                u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
+                if (!sendCommandAndRecvR1(device, Command::WriteMultipleBlock, firstBlock)) {
+                    return false;
+                }
             }
 
             u8 token = 0xfc;
@@ -340,7 +335,7 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
                 return false;
             }
 
-            if (!device.immWrite(buffer, SectorSize)) {
+            if (!device.dmaWrite(buffer, SectorSize)) {
                 DEBUG("Failed to write sector");
                 return false;
             }
@@ -359,24 +354,15 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
             }
 
             if ((token & 0x1f) != 0x05) {
-                DEBUG("Invalid token %02x", token);
-                for (u32 i = 0; i < 4; i++) {
-                    if (!device.immRead(&token, sizeof(token))) {
-                        DEBUG("Failed to read token");
-                        return false;
-                    }
-                    DEBUG("%02x", token);
-                }
+                DEBUG("Invalid token");
                 return false;
             }
         }
 
         if (!waitReady()) {
-            DEBUG("sectorCount: %u", sectorCount);
             return false;
         }
 
-        sectorCount--;
         buffer = static_cast<u8 *>(buffer) + SectorSize;
     }
 
