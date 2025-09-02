@@ -55,6 +55,14 @@ bool EXI::Device::immWrite(const void *buffer, u32 size) {
     return true;
 }
 
+bool EXI::Device::dmaRead(void *buffer, u32 size) {
+    return immRead(buffer, size);
+}
+
+bool EXI::Device::dmaWrite(const void *buffer, u32 size) {
+    return immWrite(buffer, size);
+}
+
 bool EXI::GetID(u32 channel, u32 device, u32 &id) {
     Device exiDevice(channel, device, 0, nullptr);
     if (!exiDevice.ok()) {
