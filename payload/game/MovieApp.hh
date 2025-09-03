@@ -11,7 +11,11 @@ public:
 
 private:
     MovieApp();
+    void REPLACED(calc)();
+    REPLACE void calc() override;
 
-    u8 _00[0x2c - 0x0c];
+    u8 _00[0x10 - 0x0c];
+    s32 m_state;
+    u8 _14[0x2c - 0x14];
 };
 size_assert(MovieApp, 0x2c);

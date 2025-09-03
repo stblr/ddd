@@ -6,8 +6,14 @@ extern "C" {
 #include <cube/Memory.hh>
 #include <cube/VI.hh>
 #include <payload/Lock.hh>
+#include <portable/Log.hh>
 
 extern "C" volatile u16 visel;
+
+REPLACE VIRetraceCallback VISetPostRetraceCallback(VIRetraceCallback callback) {
+    DEBUG("vi");
+    return REPLACED(VISetPostRetraceCallback)(callback);
+}
 
 void VIInit() {
     REPLACED(VIInit)();

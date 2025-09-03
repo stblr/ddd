@@ -8,6 +8,7 @@ extern "C" {
 #include <payload/Lock.hh>
 #include <payload/Mutex.hh>
 #include <payload/Replace.hh>
+#include <portable/Log.hh>
 
 static Mutex s_mutex;
 
@@ -66,6 +67,16 @@ s32 DVDGetDriveStatus() {
     }
 
     return DVD_STATE_END;
+}
+
+s32 DVDCancel(DVDCommandBlock *block) {
+    DEBUG("dvd");
+
+    s32 result = REPLACED(DVDCancel)(block);
+
+    DEBUG("dvd");
+
+    return result;
 }
 
 BOOL DVDCheckDisk() {

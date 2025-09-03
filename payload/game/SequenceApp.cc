@@ -10,6 +10,8 @@
 #include "game/System.hh"
 #include "game/SystemRecord.hh"
 
+#include <portable/Log.hh>
+
 bool SequenceApp::ready(s32 sceneType) {
     if (sceneType == SceneType::Title) {
         return true;
@@ -27,7 +29,13 @@ void SequenceApp::setNextScene(s32 sceneType) {
     m_state = 0;
 }
 
+void SequenceApp::Call(s32 sceneType) {
+    DEBUG("Call %d", sceneType);
+    REPLACED(Call)(sceneType);
+}
+
 SequenceApp *SequenceApp::Create() {
+    DEBUG("Create");
     if (ResMgr::IsFinishedLoadingArc(ResMgr::ArchiveID::MRAMLoc) && !s_instance) {
         s_instance = new (System::GetAppHeap(), 0x4) SequenceApp;
     }

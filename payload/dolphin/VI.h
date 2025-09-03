@@ -17,7 +17,8 @@ enum {
 typedef void (*VIRetraceCallback)(u32 retraceCount);
 
 VIRetraceCallback VISetPreRetraceCallback(VIRetraceCallback callback);
-VIRetraceCallback VISetPostRetraceCallback(VIRetraceCallback callback);
+VIRetraceCallback REPLACED(VISetPostRetraceCallback)(VIRetraceCallback callback);
+REPLACE VIRetraceCallback VISetPostRetraceCallback(VIRetraceCallback callback);
 void REPLACED(VIInit)(void);
 REPLACE void VIInit(void);
 void VIWaitForRetrace(void);
