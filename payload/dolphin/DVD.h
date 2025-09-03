@@ -67,6 +67,8 @@ BOOL DVDConvertEntrynumToPath(s32 entrynum, char *path, u32 maxlen);
 
 s32 REPLACED(DVDGetDriveStatus)(void);
 REPLACE s32 DVDGetDriveStatus(void);
+BOOL REPLACED(DVDCancelAsync)(DVDCommandBlock *block, DVDCBCallback callback);
+REPLACE BOOL DVDCancelAsync(DVDCommandBlock *block, DVDCBCallback callback);
 s32 REPLACED(DVDCancel)(DVDCommandBlock *block);
 REPLACE s32 DVDCancel(DVDCommandBlock *block);
 BOOL REPLACED(DVDCheckDisk)(void);

@@ -69,6 +69,22 @@ s32 DVDGetDriveStatus() {
     return DVD_STATE_END;
 }
 
+BOOL DVDCancelAsync(DVDCommandBlock *block, DVDCBCallback callback) {
+    if (!VirtualDI::IsInit()) {
+        return REPLACED(DVDCancelAsync)(block, callback);
+    }
+
+    DEBUG("dvd async %u %u", block->command, block->state);
+
+    Lock<Mutex> lock(s_mutex);
+
+    callback(0, block);
+
+    DEBUG("dvd async %u %u", block->command, block->state);
+
+    return true;
+}
+
 s32 DVDCancel(DVDCommandBlock *block) {
     DEBUG("dvd");
 
