@@ -17,6 +17,7 @@ extern "C" {
 #include <portable/Align.hh>
 #include <portable/Array.hh>
 #include <portable/Bytes.hh>
+#include <portable/Log.hh>
 #include <portable/UniquePtr.hh>
 
 extern "C" {

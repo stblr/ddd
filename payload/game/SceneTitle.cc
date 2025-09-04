@@ -364,4 +364,4 @@ void SceneTitle::stateNextRace() {
 
 void SceneTitle::stateNextMovie() {}
 
-u32 SceneTitle::s_demoType = 1;
+u32 SceneTitle::s_demoType = 0;

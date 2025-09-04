@@ -7,8 +7,10 @@ extern "C" {
 #include <dolphin/UPnPHttpd.h>
 #include <dolphin/UPnPSsdp.h>
 }
+#include <portable/Log.hh>
 
 s32 BBAMgr::processDHCP() {
+    DEBUG("dhcp %d", m_state);
     if (m_state != 2) {
         return REPLACED(processDHCP)();
     }
@@ -31,6 +33,7 @@ s32 BBAMgr::processDHCP() {
 }
 
 s32 BBAMgr::processAutoIP() {
+    DEBUG("auto ip %d", m_state);
     if (m_state != 2) {
         return REPLACED(processAutoIP)();
     }

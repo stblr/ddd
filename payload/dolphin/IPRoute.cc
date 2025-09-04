@@ -4,6 +4,8 @@ extern "C" {
 #include "dolphin/IPSocket.h"
 }
 
+#include <portable/Log.hh>
+
 extern "C" {
 #include <string.h>
 }
@@ -68,11 +70,14 @@ void IPGetLinkState(const IPInterface * /* interface */, s32 *state) {
 
 s32 IPGetConfigError(const IPInterface *interface) {
     if (!SOIsRunning()) {
+        DEBUG("not running");
         return 0;
     }
 
     if (!SOIsVirtual()) {
-        return REPLACED(IPGetConfigError)(interface);
+        s32 configError = REPLACED(IPGetConfigError)(interface);
+        DEBUG("%d", configError);
+        return configError;
     }
 
     s32 configError = 0;
