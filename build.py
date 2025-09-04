@@ -436,6 +436,7 @@ code_in_files = {
     'portable': None,
     'cube': None,
     'freestanding': None,
+    'fakeapploader': None,
     'bootstrap': None,
     'channel': None,
     'payload': None,
@@ -475,6 +476,18 @@ for target in code_in_files:
             implicit=os.path.join('tools', 'cw', 'modified_mwcceppc.exe'),
         )
         n.newline()
+
+n.build(
+    os.path.join('$builddir', 'fakeapploader', 'GM4.ld'),
+    'script',
+    [
+        os.path.join('cube', 'Symbols.txt'),
+        os.path.join('fakeapploader', 'Symbols.txt'),
+        os.path.join('fakeapploader', 'GM4.ld.template'),
+    ],
+    implicit = '$script',
+)
+n.newline()
 
 n.build(
     os.path.join('$builddir', 'payload', 'payload.o'),
@@ -937,7 +950,7 @@ n.newline()
 default = ['ddd', 'tests', 'fuzzers']
 if 'win' not in sys.platform and 'msys' not in sys.platform:
     default += ['checks']
-n.default(default)
+#n.default(default)
 
 if args.dry:
     with open('build.ninja', 'w') as out_file:

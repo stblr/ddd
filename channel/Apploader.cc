@@ -12,7 +12,7 @@ extern "C" {
 #include <string.h>
 }
 
-Apploader::GameEntryFunc Apploader::Run(ReadFunc read) {
+GameEntryFunc Apploader::Run(ReadFunc read) {
     const Array<u8, 32> *hashes;
     switch (DiscID::Get().gameID[3]) {
     case 'P':
