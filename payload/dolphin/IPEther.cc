@@ -10,6 +10,7 @@ extern "C" {
 
 #include <cube/Clock.hh>
 #include <portable/Array.hh>
+#include <portable/Log.hh>
 
 extern "C" IPInterface IFDefault;
 extern "C" OSAlarm LinkAlarm;
@@ -17,20 +18,29 @@ extern "C" OSAlarm LinkAlarm;
 extern "C" void LinkCheckHandler(OSAlarm *alarm, OSContext *context);
 
 BOOL IFInit(s32 mode) {
+    DEBUG("a");
+    LinkCheckHandler(nullptr, nullptr);
     static bool isInit = false;
     if (!isInit) {
+        DEBUG("b");
         isInit = true;
         bool result = REPLACED(IFInit)(mode);
         if (IFDefault.mode == ETH_MODE_UNKNOWN) {
             OSCreateAlarm(&LinkAlarm);
         }
+        DEBUG("c");
         return result;
     }
 
     OSCancelAlarm(&LinkAlarm);
     if (ETHInit(mode) >= 0) {
+        LinkCheckHandler(nullptr, nullptr);
+        DEBUG("d");
         IFDefault.mode = mode;
+        u8 *m = IFDefault.macaddr;
+        DEBUG("%02x %02x %02x %02x %02x %02x", m[0], m[1], m[2], m[3], m[4], m[5]);
         ETHGetMACAddr(IFDefault.macaddr);
+        DEBUG("%02x %02x %02x %02x %02x %02x", m[0], m[1], m[2], m[3], m[4], m[5]);
         static Array<u16, 4> protocols;
         protocols[0] = 0x0800; // IPv4
         protocols[1] = 0x0806; // ARP
@@ -42,9 +52,13 @@ BOOL IFInit(s32 mode) {
         s64 period = Clock::MillisecondsToTicks(250);
         OSSetPeriodicAlarm(&LinkAlarm, start, period, LinkCheckHandler);
         IGMPInit(&IFDefault);
+        LinkCheckHandler(nullptr, nullptr);
+        DEBUG("e");
     } else {
+        DEBUG("f");
         IFMute(true);
         IFDefault.mode = ETH_MODE_UNKNOWN;
+        DEBUG("g");
     }
     return true;
 }

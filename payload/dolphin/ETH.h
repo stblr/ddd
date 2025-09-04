@@ -1,5 +1,6 @@
 #pragma once
 
+#include <payload/Replace.h>
 #include <portable/Types.h>
 
 enum {
@@ -18,7 +19,8 @@ typedef void (*ETHCallback2)(u8 ltps);
 s32 ETHInit(s32 mode);
 void ETHGetMACAddr(u8 macaddr[6]);
 void ETHSetRecvCallback(ETHCallback0 callback0, ETHCallback1 callback1);
-BOOL ETHGetLinkStateAsync(BOOL *status);
+BOOL REPLACED(ETHGetLinkStateAsync)(BOOL *status);
+REPLACE BOOL ETHGetLinkStateAsync(BOOL *status);
 void ETHSetProtoType(u16 *array, s32 num);
 void ETHSendAsync(void *addr, s32 length, ETHCallback2 callback2);
 void ETHAddMulticastAddress(const u8 macaddr[6]);

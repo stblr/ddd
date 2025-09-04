@@ -242,6 +242,7 @@ bool EXISDStorage::execute(const struct Transfer *transfer) {
 }
 
 bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) {
+    DEBUG("r");
     {
         EXI::Device device(m_channel, 0, 5, &m_wasDetached);
         if (!device.ok()) {
@@ -313,6 +314,7 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
 }
 
 bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer) {
+    DEBUG("w");
     for (u32 i = 0; i < sectorCount; i++) {
         {
             EXI::Device device(m_channel, 0, 5, &m_wasDetached);
@@ -389,6 +391,7 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
 }
 
 bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buffer */) {
+    DEBUG("e");
     u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
     if (!sendCommandAndRecvR1(Command::EraseWrBlkStartAddr, firstBlock)) {
         return false;

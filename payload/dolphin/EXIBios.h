@@ -13,7 +13,8 @@ enum {
 
 typedef void (*EXICallback)(s32 chan, OSContext *context);
 
-BOOL EXISelect(s32 chan, u32 dev, u32 freq);
+BOOL REPLACED(EXISelect)(s32 chan, u32 dev, u32 freq);
+REPLACE BOOL EXISelect(s32 chan, u32 dev, u32 freq);
 BOOL EXIDeselect(s32 chan);
 void EXIProbeReset(void);
 BOOL EXIAttach(s32 chan, EXICallback extCallback);
@@ -25,8 +26,10 @@ BOOL EXIImmEx(s32 chan, void *buf, s32 len, u32 type);
 BOOL EXISync(s32 chan);
 BOOL EXIClearInterrupts(s32 chan, BOOL exi, BOOL tc, BOOL ext);
 
-BOOL EXILock(s32 chan, u32 dev, EXICallback unlockedCallback);
-BOOL EXIUnlock(s32 chan);
+BOOL REPLACED(EXILock)(s32 chan, u32 dev, EXICallback unlockedCallback);
+REPLACE BOOL EXILock(s32 chan, u32 dev, EXICallback unlockedCallback);
+BOOL REPLACED(EXIUnlock)(s32 chan);
+REPLACE BOOL EXIUnlock(s32 chan);
 
 s32 EXIGetID(s32 chan, u32 dev, u32 *id);
 s32 REPLACED(EXIGetType)(s32 chan, u32 dev, u32 *type);

@@ -7,6 +7,7 @@ extern "C" {
 #include <cube/Memory.hh>
 #include <cube/Platform.hh>
 #include <payload/Lock.hh>
+#include <portable/Log.hh>
 
 extern "C" {
 #include <string.h>
@@ -50,6 +51,16 @@ void EXIProbeReset(void) {
     __EXIProbe(1);
 }
 
+BOOL EXISelect(s32 chan, u32 dev, u32 freq) {
+    BOOL result = REPLACED(EXISelect)(chan, dev, freq);
+
+    if (chan == 0 && dev == 2) {
+        DEBUG("s %d %u %u %d", chan, dev, freq, result);
+    }
+
+    return result;
+}
+
 BOOL EXIDma(s32 chan, void *buf, s32 len, u32 type, EXICallback callback) {
     buf = reinterpret_cast<void *>(Memory::CachedToPhysical(buf));
     return REPLACED(EXIDma)(chan, buf, len, type, callback);
@@ -81,6 +92,29 @@ BOOL EXIImm(s32 chan, void *buf, s32 len, u32 type, EXICallback callback) {
     Ecb[chan].len = type == EXI_WRITE ? 0 : len;
     exi[chan].cr = (len - 1) << 4 | type << 2 | 1 << 0;
     return true;
+}
+
+static u32 d;
+
+BOOL EXILock(s32 chan, u32 dev, EXICallback unlockedCallback) {
+    BOOL result = REPLACED(EXILock)(chan, dev, unlockedCallback);
+
+    if (chan == 0) {
+        d = dev;
+    }
+    if (chan == 0 && dev == 2) {
+        DEBUG("l %d %u %p %d", chan, dev, unlockedCallback, result);
+    }
+
+    return result;
+}
+
+BOOL EXIUnlock(s32 chan) {
+    if (chan == 0 && d == 2) {
+        DEBUG("u %d %u", chan, d);
+    }
+
+    return REPLACED(EXIUnlock)(chan);
 }
 
 s32 EXIGetType(s32 chan, u32 dev, u32 *type) {
