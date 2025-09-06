@@ -17,6 +17,7 @@ extern "C" {
 #include <portable/Align.hh>
 #include <portable/Array.hh>
 #include <portable/Bytes.hh>
+#include <portable/Log.hh>
 #include <portable/UniquePtr.hh>
 
 extern "C" {
@@ -115,6 +116,7 @@ static void *Run(void * /* param */) {
 }
 
 void SOInit() {
+    DEBUG("SOInit");
     REPLACED(SOInit)();
     s_isVirtual = false;
     if (!Platform::IsGameCube()) {
@@ -136,6 +138,7 @@ void SOInit() {
 }
 
 s32 SOStartup(SOConfig *config) {
+    DEBUG("SOStartup %p", config);
     Lock<NoInterrupts> lock;
     if (s_currIsRunning && s_nextIsRunning) {
         if (!memcmp(config, &s_config, sizeof(s_config))) {
@@ -152,6 +155,7 @@ s32 SOStartup(SOConfig *config) {
 }
 
 s32 SOCleanup() {
+    DEBUG("SOCleanup");
     Lock<NoInterrupts> lock;
     s_nextIsRunning = false;
     OSSendMessage(&s_queue, nullptr, OS_MESSAGE_NOBLOCK);
@@ -159,6 +163,7 @@ s32 SOCleanup() {
 }
 
 s32 SOSocket(s32 domain, s32 type, s32 protocol) {
+    DEBUG("SOSocket %d %d %d", domain, type, protocol);
     if (!s_isVirtual) {
         return REPLACED(SOSocket)(domain, type, protocol);
     }
@@ -171,6 +176,7 @@ s32 SOSocket(s32 domain, s32 type, s32 protocol) {
 }
 
 s32 SOClose(s32 socket) {
+    DEBUG("SOClose %d", socket);
     if (!s_isVirtual) {
         return REPLACED(SOClose)(socket);
     }
@@ -181,6 +187,7 @@ s32 SOClose(s32 socket) {
 }
 
 s32 SOListen(s32 socket, s32 backlog) {
+    DEBUG("SOListen %d %d", socket, backlog);
     if (!s_isVirtual) {
         return REPLACED(SOListen)(socket, backlog);
     }
@@ -192,6 +199,7 @@ s32 SOListen(s32 socket, s32 backlog) {
 }
 
 s32 SOAccept(s32 socket, SOSockAddr *address) {
+    DEBUG("SOAccept %d %p", socket, address);
     if (!s_isVirtual) {
         return REPLACED(SOAccept)(socket, address);
     }
@@ -211,6 +219,7 @@ s32 SOAccept(s32 socket, SOSockAddr *address) {
 }
 
 s32 SOBind(s32 socket, const SOSockAddr *address) {
+    DEBUG("SOBind %d %p", socket, address);
     if (!s_isVirtual) {
         return REPLACED(SOBind)(socket, address);
     }
@@ -223,6 +232,7 @@ s32 SOBind(s32 socket, const SOSockAddr *address) {
 }
 
 s32 SOShutdown(s32 socket, s32 how) {
+    DEBUG("SOShutdown %d %d", socket, how);
     if (!s_isVirtual) {
         return REPLACED(SOShutdown)(socket, how);
     }
@@ -266,7 +276,9 @@ s32 SORecvFrom(s32 socket, void *buffer, s32 length, s32 flags, SOSockAddr *addr
 
 s32 SOSendTo(s32 socket, const void *buffer, s32 length, s32 flags, const SOSockAddr *address) {
     if (!s_isVirtual) {
-        return REPLACED(SOSendTo)(socket, buffer, length, flags, address);
+        s32 result = REPLACED(SOSendTo)(socket, buffer, length, flags, address);
+        DEBUG("SOSendTo %d %p %d %d %p -> %d", socket, buffer, length, flags, address, result);
+        return result;
     }
 
     UniquePtr<u8[]> in(new (s_heap, 0x20) u8[AlignUp(0x20 + length, 0x20)]);
@@ -287,6 +299,7 @@ s32 SOSendTo(s32 socket, const void *buffer, s32 length, s32 flags, const SOSock
 }
 
 s32 SOSetSockOpt(s32 socket, s32 level, s32 optname, const void *optval, s32 optlen) {
+    DEBUG("SOSetSockOpt");
     if (!s_isVirtual) {
         return REPLACED(SOSetSockOpt)(socket, level, optname, optval, optlen);
     }
@@ -301,6 +314,7 @@ s32 SOSetSockOpt(s32 socket, s32 level, s32 optname, const void *optval, s32 opt
 }
 
 s32 SOFcntl(s32 socket, s32 cmd, ...) {
+    DEBUG("SOFcntl");
     s32 arg = 0;
     if (cmd == SO_F_SETFL) {
         va_list vlist;
@@ -321,6 +335,7 @@ s32 SOFcntl(s32 socket, s32 cmd, ...) {
 }
 
 s32 SOPoll(SOPollFD *fds, u32 nfds, s64 timeout) {
+    DEBUG("SOPoll");
     if (!s_isVirtual) {
         return REPLACED(SOPoll)(fds, nfds, timeout);
     }

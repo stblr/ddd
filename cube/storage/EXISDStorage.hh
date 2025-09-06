@@ -53,6 +53,7 @@ private:
     bool recvR3(EXI::Device &device, u8 &r1, u32 &ocr);
     bool recvR7(EXI::Device &device, u8 &r1, u8 &commandVersion, u8 &vhs, u8 &checkPattern);
     bool waitReady();
+    bool waitReady(EXI::Device &device, bool r = true);
 
     static void *Run(void *param);
     static void *Transfer(void *param);

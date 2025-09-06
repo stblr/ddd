@@ -33,6 +33,9 @@ void CubeLogger::vlog(u32 level, const char *shortFormat, const char *longFormat
     case LOG_LEVEL_INFO:
         fg = Console::Color::White;
         break;
+    /*case LOG_LEVEL_DEBUG:
+        fg = Console::Color::Cyan;
+        break;*/
     default:
         return;
     }

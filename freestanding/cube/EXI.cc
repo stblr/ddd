@@ -17,12 +17,14 @@ size_assert(Channel, 0x14);
 
 extern "C" volatile Channel exi[3];
 
-EXI::Device::Device(u32 channel, u32 device, u32 frequency, bool * /* wasDetached */)
-    : m_channel(channel), m_ok(true) {
+bool EXI::Device::acquire(u32 channel, u32 device, u32 frequency, bool * /* wasDetached */) {
+    m_channel = channel;
+    m_ok = true;
     exi[channel].cpr = (1 << device) << 7 | frequency << 4;
+    return true;
 }
 
-EXI::Device::~Device() {
+void EXI::Device::release() {
     exi[m_channel].cpr = 0;
 }
 

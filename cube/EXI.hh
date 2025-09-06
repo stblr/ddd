@@ -9,6 +9,8 @@ public:
         Device(u32 channel, u32 device, u32 frequency, bool *wasDetached);
         ~Device();
         bool ok() const;
+        bool acquire(u32 channel, u32 device, u32 frequency, bool *wasDetached);
+        void release();
         bool immRead(void *buffer, u32 size);
         bool immWrite(const void *buffer, u32 size);
         bool dmaRead(void *buffer, u32 size);
