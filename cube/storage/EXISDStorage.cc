@@ -242,168 +242,121 @@ bool EXISDStorage::execute(const struct Transfer *transfer) {
 }
 
 bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) {
-    {
+    for (u32 sector = firstSector; sector < firstSector + sectorCount;
+            sector++, buffer = static_cast<u8 *>(buffer) + SectorSize) {
         EXI::Device device(m_channel, 0, 5, &m_wasDetached);
         if (!device.ok()) {
             DEBUG("Failed to select device");
             return false;
         }
 
-        u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
-        if (!sendCommandAndRecvR1(device, Command::ReadMultipleBlock, firstBlock)) {
+        u32 block = m_isSDHC ? sector : sector * SectorSize;
+        if (!sendCommandAndRecvR1(device, Command::ReadSingleBlock, block)) {
             return false;
         }
 
-        for (u32 i = 0; i < sectorCount;) {
-            u8 token;
+        u8 token;
+        do {
             if (!device.immRead(&token, sizeof(token))) {
                 DEBUG("Failed to read token");
                 return false;
             }
+        } while (token != 0xfe);
 
-            if (token != 0xfe) {
-                continue;
-            }
-
-            if (!device.immRead(buffer, SectorSize)) {
-                DEBUG("Failed to read sector");
-                return false;
-            }
-
-            Array<u8, 2> crc16;
-            if (!device.immRead(crc16.values(), crc16.count())) {
-                DEBUG("Failed to read CRC16");
-                return false;
-            }
-
-            if (ComputeCRC16(static_cast<u8 *>(buffer), SectorSize) !=
-                    Bytes::ReadBE<u16>(crc16.values(), 0)) {
-                DEBUG("Mismatched CRC16");
-                return false;
-            }
-
-            i++;
-            buffer = static_cast<u8 *>(buffer) + SectorSize;
-        }
-
-        if (!sendCommand(device, Command::StopTransmission, 0)) {
-            DEBUG("Failed to send CMD12");
+        if (!device.immRead(buffer, SectorSize)) {
+            DEBUG("Failed to read sector");
             return false;
         }
 
-        u8 dummy;
-        if (!device.immRead(&dummy, sizeof(dummy))) {
-            DEBUG("Failed to read dummy for CMD12");
+        Array<u8, 2> crc16;
+        if (!device.immRead(crc16.values(), crc16.count())) {
+            DEBUG("Failed to read CRC16");
             return false;
         }
 
-        u8 r1;
-        if (!recvR1(device, r1)) {
-            DEBUG("Failed to receive R1 for CMD12");
-            return false;
-        }
-
-        if (r1) {
-            DEBUG("CMD12 error");
+        if (ComputeCRC16(static_cast<u8 *>(buffer), SectorSize) !=
+                Bytes::ReadBE<u16>(crc16.values(), 0)) {
+            DEBUG("Mismatched CRC16");
             return false;
         }
     }
 
-    return waitReady();
+    return true;
 }
 
 bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer) {
-    for (u32 i = 0; i < sectorCount; i++) {
-        {
-            EXI::Device device(m_channel, 0, 5, &m_wasDetached);
-            if (!device.ok()) {
-                DEBUG("Failed to select device");
-                return false;
-            }
-
-            if (i == 0) {
-                u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
-                if (!sendCommandAndRecvR1(device, Command::WriteMultipleBlock, firstBlock)) {
-                    return false;
-                }
-            }
-
-            u8 token = 0xfc;
-            if (!device.immWrite(&token, sizeof(token))) {
-                DEBUG("Failed to write token");
-                return false;
-            }
-
-            if (!device.dmaWrite(buffer, SectorSize)) {
-                DEBUG("Failed to write sector");
-                return false;
-            }
-
-            Array<u8, 2> crc16;
-            Bytes::WriteBE<u16>(crc16.values(), 0,
-                    ComputeCRC16(static_cast<const u8 *>(buffer), SectorSize));
-            if (!device.immWrite(crc16.values(), crc16.count())) {
-                DEBUG("Failed to write CRC16");
-                return false;
-            }
-
-            if (!device.immRead(&token, sizeof(token))) {
-                DEBUG("Failed to read token");
-                return false;
-            }
-
-            if ((token & 0x1f) != 0x05) {
-                DEBUG("Invalid token");
-                return false;
-            }
-        }
-
-        if (!waitReady()) {
-            return false;
-        }
-
-        buffer = static_cast<u8 *>(buffer) + SectorSize;
-    }
-
-    {
+    for (u32 sector = firstSector; sector < firstSector + sectorCount;
+            sector++, buffer = static_cast<u8 *>(buffer) + SectorSize) {
         EXI::Device device(m_channel, 0, 5, &m_wasDetached);
         if (!device.ok()) {
             DEBUG("Failed to select device");
             return false;
         }
 
-        u8 token = 0xfd;
+        u32 block = m_isSDHC ? sector : sector * SectorSize;
+        if (!sendCommandAndRecvR1(device, Command::WriteSingleBlock, block)) {
+            return false;
+        }
+
+        u8 token = 0xfe;
         if (!device.immWrite(&token, sizeof(token))) {
             DEBUG("Failed to write token");
             return false;
         }
 
-        u8 dummy;
-        if (!device.immRead(&dummy, sizeof(dummy))) {
-            DEBUG("Failed to read dummy");
+        if (!device.dmaWrite(buffer, SectorSize)) {
+            DEBUG("Failed to write sector");
+            return false;
+        }
+
+        Array<u8, 2> crc16;
+        Bytes::WriteBE<u16>(crc16.values(), 0,
+                ComputeCRC16(static_cast<const u8 *>(buffer), SectorSize));
+        if (!device.immWrite(crc16.values(), crc16.count())) {
+            DEBUG("Failed to write CRC16");
+            return false;
+        }
+
+        if (!device.immRead(&token, sizeof(token))) {
+            DEBUG("Failed to read token");
+            return false;
+        }
+
+        if ((token & 0x1f) != 0x05) {
+            DEBUG("Invalid token");
+            return false;
+        }
+
+        if (!waitReady(device)) {
             return false;
         }
     }
 
-    return waitReady();
+    return true;
 }
 
 bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buffer */) {
+    EXI::Device device(m_channel, 0, 5, &m_wasDetached);
+    if (!device.ok()) {
+        DEBUG("Failed to select device");
+        return false;
+    }
+
     u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
-    if (!sendCommandAndRecvR1(Command::EraseWrBlkStartAddr, firstBlock)) {
+    if (!sendCommandAndRecvR1(device, Command::EraseWrBlkStartAddr, firstBlock)) {
         return false;
     }
 
     u32 lastBlock = firstBlock + (m_isSDHC ? sectorCount : sectorCount * SectorSize) - 1;
-    if (!sendCommandAndRecvR1(Command::EraseWrBlkEndAddr, lastBlock)) {
+    if (!sendCommandAndRecvR1(device, Command::EraseWrBlkEndAddr, lastBlock)) {
         return false;
     }
 
-    if (!sendCommandAndRecvR1(Command::Erase, 0)) {
+    if (!sendCommandAndRecvR1(device, Command::Erase, 0)) {
         return false;
     }
 
-    return waitReady();
+    return waitReady(device);
 }
 
 bool EXISDStorage::sendCommandAndRecvR1(u8 command, u32 argument, u8 r1Mask) {
@@ -491,18 +444,24 @@ bool EXISDStorage::recvR7(EXI::Device &device, u8 &r1, u8 &commandVersion, u8 &v
     return true;
 }
 
-bool EXISDStorage::waitReady() {
-    u8 token;
-    do {
-        EXI::Device device(m_channel, 0, 5, &m_wasDetached);
-        if (!device.ok()) {
-            return false;
-        }
+bool EXISDStorage::waitReady(EXI::Device &device) {
+    while (true) {
+        u8 token;
         if (!device.immRead(&token, sizeof(token))) {
+            DEBUG("Failed to read token");
             return false;
         }
-    } while (token != 0xff);
-    return true;
+
+        if (token == 0xff) {
+            return true;
+        }
+
+        device.release();
+        if (!device.acquire(m_channel, 0, 5, &m_wasDetached)) {
+            DEBUG("Failed to select device");
+            return false;
+        }
+    }
 }
 
 u8 EXISDStorage::ComputeCRC7(const u8 *buffer, u32 size) {

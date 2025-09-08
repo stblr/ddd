@@ -8,9 +8,11 @@ extern "C" {
 #include <payload/Lock.hh>
 #include <portable/Align.hh>
 
-EXI::Device::Device(u32 channel, u32 device, u32 frequency, bool *wasDetached)
-    : m_channel(channel), m_ok(false) {
+bool EXI::Device::acquire(u32 channel, u32 device, u32 frequency, bool *wasDetached) {
     Lock<NoInterrupts> lock;
+
+    m_channel = channel;
+    m_ok = false;
 
     while (!EXILock(channel, device, HandleUnlock)) {
         OSSleepThread(&s_queues[channel]);
@@ -18,21 +20,23 @@ EXI::Device::Device(u32 channel, u32 device, u32 frequency, bool *wasDetached)
 
     if (wasDetached && *wasDetached) {
         EXIUnlock(channel);
-        return;
+        return false;
     }
 
     if (!EXISelect(channel, device, frequency)) {
         EXIUnlock(channel);
-        return;
+        return false;
     }
 
     m_ok = true;
+    return true;
 }
 
-EXI::Device::~Device() {
+void EXI::Device::release() {
     if (m_ok) {
         EXIDeselect(m_channel);
         EXIUnlock(m_channel);
+        m_ok = false;
     }
 }
 
