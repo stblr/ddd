@@ -8,6 +8,17 @@ extern "C" {
 #include <payload/Lock.hh>
 #include <portable/Align.hh>
 
+struct EXIChannel {
+    u32 cpr;
+    u32 mar;
+    u32 length;
+    u32 cr;
+    u32 data;
+};
+size_assert(EXIChannel, 0x14);
+
+extern "C" volatile EXIChannel exi[3];
+
 bool EXI::Device::acquire(u32 channel, u32 device, u32 frequency, bool *wasDetached) {
     Lock<NoInterrupts> lock;
 
@@ -35,6 +46,21 @@ bool EXI::Device::acquire(u32 channel, u32 device, u32 frequency, bool *wasDetac
 void EXI::Device::release() {
     if (m_ok) {
         EXIDeselect(m_channel);
+        EXIUnlock(m_channel);
+        m_ok = false;
+    }
+}
+
+void EXI::Device::release2() {
+    if (m_ok) {
+        EXIDeselect(m_channel);
+        exi[m_channel].cpr = (exi[m_channel].cpr & 0x405) | 5 << 4;
+        u32 chunk = ~0;
+        u32 chunkSize = 1;
+        exi[m_channel].data = chunk;
+        exi[m_channel].cr = (chunkSize - 1) << 4 | 0 << 2 | 1 << 0;
+        while (exi[m_channel].cr & 1) {}
+        exi[m_channel].cpr = exi[m_channel].cpr & 0x405;
         EXIUnlock(m_channel);
         m_ok = false;
     }

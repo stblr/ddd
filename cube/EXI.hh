@@ -11,6 +11,7 @@ public:
         bool ok() const;
         bool acquire(u32 channel, u32 device, u32 frequency, bool *wasDetached);
         void release();
+        void release2();
         bool immRead(void *buffer, u32 size);
         bool immWrite(const void *buffer, u32 size);
         bool dmaRead(void *buffer, u32 size);

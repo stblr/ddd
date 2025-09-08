@@ -242,6 +242,10 @@ bool EXISDStorage::execute(const struct Transfer *transfer) {
 }
 
 bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) {
+    //WARN("r %u", firstSector);
+    //u32 s = sectorCount;
+    //s64 start = Clock::GetMonotonicTicks();
+
     EXI::Device device(m_channel, 0, 5, &m_wasDetached);
     if (!device.ok()) {
         WARN("Failed to select device");
@@ -307,10 +311,23 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
         return false;
     }
 
-    return waitReady(device);
+    //s32 d0 = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
+
+    bool result = waitReady(device, false);
+
+    /*s32 d1 = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
+    if (s > 1 || d0 > 0) {
+        WARN("r %u %d %d", s, d0, d1);
+    }*/
+
+    return result;
 }
 
 bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer) {
+    WARN("w %u", sectorCount);
+    //u32 s = sectorCount;
+    //s64 start = Clock::GetMonotonicTicks();
+
     EXI::Device device(m_channel, 0, 5, &m_wasDetached);
     if (!device.ok()) {
         WARN("Failed to select device");
@@ -352,7 +369,7 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
             return false;
         }
 
-        if (!waitReady(device, false)) {
+        if (!waitReady(device, true)) {
             return false;
         }
 
@@ -372,10 +389,18 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
         return false;
     }
 
-    return waitReady(device, false);
+    bool result = waitReady(device, true);
+
+    //s32 duration = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
+    //WARN("w %u %d", s, duration);
+
+    return result;
 }
 
 bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buffer */) {
+    u32 s = sectorCount;
+    s64 start = Clock::GetMonotonicTicks();
+
     EXI::Device device(m_channel, 0, 5, &m_wasDetached);
     if (!device.ok()) {
         WARN("Failed to select device");
@@ -396,7 +421,12 @@ bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buf
         return false;
     }
 
-    return waitReady(device);
+    bool result = waitReady(device, false);
+
+    s32 duration = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
+    WARN("e %u %d", s, duration);
+
+    return result;
 }
 
 bool EXISDStorage::sendCommandAndRecvR1(u8 command, u32 argument, u8 r1Mask) {
@@ -523,11 +553,11 @@ bool EXISDStorage::waitReady(EXI::Device &device, bool r) {
                 return false;
             }
 
-            u8 dummy;
+            /*u8 dummy;
             if (!device.immRead(&dummy, sizeof(dummy))) {
                 WARN("Failed to read dummy");
                 return false;
-            }
+            }*/
         }
     }
 }
