@@ -43,11 +43,11 @@ void LogoApp::calc() {
         INFO("Loaded se00_0.aw.");
         break;
     case 4:
-        INFO("12345");
-        return;
-        {
+        /*INFO("12345");
+        return;*/
+        /*{
             SOConfig &config = BBAMgr::Config();
-            config.flag = 1 << 0; 
+            config.flag = 1 << 0;
             CubeNetwork::Instance().ensureStarted(config);
         }
         break;
@@ -62,12 +62,12 @@ void LogoApp::calc() {
             u32 a = address;
             if (CubeDNS::Instance()->resolve("google.com", address)) {
                 if (address != a) {
-                    DEBUG("%08x", address);
+                    INFO("%08x", address);
                 }
             }
         }
         return;
-    case 7:
+    case 7:*/
         CourseManager::Instance()->start();
         CubeServerManager::Instance()->start();
         Client::Init(System::GetAppHeap(), BBAMgr::Config());

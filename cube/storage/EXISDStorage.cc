@@ -242,31 +242,26 @@ bool EXISDStorage::execute(const struct Transfer *transfer) {
 }
 
 bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) {
-    //WARN("r %u", firstSector);
-    //u32 s = sectorCount;
-    //s64 start = Clock::GetMonotonicTicks();
-
-    EXI::Device device(m_channel, 0, 5, &m_wasDetached);
-    if (!device.ok()) {
-        WARN("Failed to select device");
-        return false;
-    }
-
-    u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
-    if (!sendCommandAndRecvR1(device, Command::ReadMultipleBlock, firstBlock)) {
-        return false;
-    }
-
-    while (sectorCount > 0) {
-        u8 token;
-        if (!device.immRead(&token, sizeof(token))) {
-            WARN("Failed to read token");
+    for (u32 sector = firstSector; sector < firstSector + sectorCount;
+            sector++, buffer = static_cast<u8 *>(buffer) + SectorSize) {
+        EXI::Device device(m_channel, 0, 5, &m_wasDetached);
+        if (!device.ok()) {
+            WARN("Failed to select device");
             return false;
         }
 
-        if (token != 0xfe) {
-            continue;
+        u32 block = m_isSDHC ? sector : sector * SectorSize;
+        if (!sendCommandAndRecvR1(device, Command::ReadSingleBlock, block)) {
+            return false;
         }
+
+        u8 token;
+        do {
+            if (!device.immRead(&token, sizeof(token))) {
+                WARN("Failed to read token");
+                return false;
+            }
+        } while (token != 0xfe);
 
         if (!device.immRead(buffer, SectorSize)) {
             WARN("Failed to read sector");
@@ -284,63 +279,26 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
             WARN("Mismatched CRC16");
             return false;
         }
-
-        sectorCount--;
-        buffer = static_cast<u8 *>(buffer) + SectorSize;
     }
 
-    if (!sendCommand(device, Command::StopTransmission, 0)) {
-        WARN("Failed to send CMD12");
-        return false;
-    }
-
-    u8 dummy;
-    if (!device.immRead(&dummy, sizeof(dummy))) {
-        WARN("Failed to read dummy for CMD12");
-        return false;
-    }
-
-    u8 r1;
-    if (!recvR1(device, r1)) {
-        WARN("Failed to receive R1 for CMD12");
-        return false;
-    }
-
-    if (r1) {
-        WARN("CMD12 error");
-        return false;
-    }
-
-    //s32 d0 = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
-
-    bool result = waitReady(device, false);
-
-    /*s32 d1 = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
-    if (s > 1 || d0 > 0) {
-        WARN("r %u %d %d", s, d0, d1);
-    }*/
-
-    return result;
+    return true;
 }
 
 bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer) {
-    WARN("w %u", sectorCount);
-    //u32 s = sectorCount;
-    //s64 start = Clock::GetMonotonicTicks();
+    for (u32 sector = firstSector; sector < firstSector + sectorCount;
+            sector++, buffer = static_cast<u8 *>(buffer) + SectorSize) {
+        EXI::Device device(m_channel, 0, 5, &m_wasDetached);
+        if (!device.ok()) {
+            WARN("Failed to select device");
+            return false;
+        }
 
-    EXI::Device device(m_channel, 0, 5, &m_wasDetached);
-    if (!device.ok()) {
-        WARN("Failed to select device");
-        return false;
-    }
+        u32 block = m_isSDHC ? sector : sector * SectorSize;
+        if (!sendCommandAndRecvR1(device, Command::WriteSingleBlock, block)) {
+            return false;
+        }
 
-    u32 firstBlock = m_isSDHC ? firstSector : firstSector * SectorSize;
-    if (!sendCommandAndRecvR1(device, Command::WriteMultipleBlock, firstBlock)) {
-        return false;
-    }
-
-    while (sectorCount > 0) {
-        u8 token = 0xfc;
+        u8 token = 0xfe;
         if (!device.immWrite(&token, sizeof(token))) {
             WARN("Failed to write token");
             return false;
@@ -372,29 +330,9 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
         if (!waitReady(device, true)) {
             return false;
         }
-
-        sectorCount--;
-        buffer = static_cast<u8 *>(buffer) + SectorSize;
     }
 
-    u8 token = 0xfd;
-    if (!device.immWrite(&token, sizeof(token))) {
-        WARN("Failed to write token");
-        return false;
-    }
-
-    u8 dummy;
-    if (!device.immRead(&dummy, sizeof(dummy))) {
-        WARN("Failed to read dummy");
-        return false;
-    }
-
-    bool result = waitReady(device, true);
-
-    //s32 duration = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
-    //WARN("w %u %d", s, duration);
-
-    return result;
+    return true;
 }
 
 bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buffer */) {
@@ -421,7 +359,7 @@ bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buf
         return false;
     }
 
-    bool result = waitReady(device, false);
+    bool result = waitReady(device, true);
 
     s32 duration = Clock::TicksToMilliseconds(Clock::GetMonotonicTicks() - start);
     WARN("e %u %d", s, duration);
@@ -468,7 +406,7 @@ bool EXISDStorage::sendCommand(EXI::Device &device, u8 command, u32 argument) {
 }
 
 bool EXISDStorage::recvR1(EXI::Device &device, u8 &r1) {
-    for (u32 i = 0; i < 16; i++) {
+    for (u32 i = 0; i < 8; i++) {
         Array<u8, 1> buffer;
         if (!device.immRead(buffer.values(), buffer.count())) {
             return false;
@@ -531,10 +469,6 @@ bool EXISDStorage::waitReady() {
 }
 
 bool EXISDStorage::waitReady(EXI::Device &device, bool r) {
-    /*if (!device.immRead(&token, sizeof(token))) {
-        WARN("Failed to read token");
-        return false;
-    }*/
     while (true) {
         u8 token;
         if (!device.immRead(&token, sizeof(token))) {
@@ -552,6 +486,8 @@ bool EXISDStorage::waitReady(EXI::Device &device, bool r) {
                 WARN("Failed to select device");
                 return false;
             }
+
+            //WARN("r");
 
             /*u8 dummy;
             if (!device.immRead(&dummy, sizeof(dummy))) {

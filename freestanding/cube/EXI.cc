@@ -28,12 +28,6 @@ void EXI::Device::release() {
     exi[m_channel].cpr = 0;
 }
 
-void EXI::Device::release2() {
-    exi[m_channel].cpr = 0;
-    u8 dummy;
-    immRead(&dummy, sizeof(dummy));
-}
-
 bool EXI::Device::immRead(void *buffer, u32 size) {
     while (size > 0) {
         u32 chunk = ~0;
