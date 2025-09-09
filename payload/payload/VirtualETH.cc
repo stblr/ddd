@@ -74,10 +74,12 @@ void VirtualETH::handleEXT() {
 bool VirtualETH::init() {
     m_bank = 0;
 
+    // TODO is this useful?
     u32 id;
     if (!EXI::GetID(m_channel, 0, id)) {
         return false;
     }
+    DEBUG("%08x", id);
 
     reset();
 
@@ -119,12 +121,15 @@ bool VirtualETH::init() {
     if (!readPHYRegister(PHID1, phid1)) {
         return false;
     }
-    DEBUG("phid1 %04x", phid1);
     u16 phid2;
     if (!readPHYRegister(PHID2, phid2)) {
         return false;
     }
-    DEBUG("phid2 %04x", phid2);
+    u32 phid = phid1 << 16 | phid2 << 0;
+    if (phid != 0x00831400) {
+        DEBUG("Unexpected PHID %08x", phid);
+        return false;
+    }
 
     return false;
 }
