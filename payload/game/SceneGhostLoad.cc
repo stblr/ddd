@@ -52,6 +52,7 @@ void SceneGhostLoad::slideIn() {
 
 void SceneGhostLoad::slideOut() {
     MenuTitleLine::Instance()->lift();
+    m_selectSlot.frameOut();
     m_state = &SceneGhostLoad::stateSlideOut;
 }
 
@@ -87,12 +88,35 @@ void SceneGhostLoad::stateSlideIn() {
 }
 
 void SceneGhostLoad::stateSlideOut() {
-    nextScene();
+    if (m_nextScene == SceneType::None) {
+        nextRace();
+    } else {
+        nextScene();
+    }
 }
 
-void SceneGhostLoad::stateIdle() {}
+void SceneGhostLoad::stateIdle() {
+    u32 action = m_selectSlot.selectSlot();
+    switch (action) {
+    case SelectSlot::Action::Next:
+        m_selectSlot.frameOut();
+        break;
+    case SelectSlot::Action::Prev:
+        m_nextScene = SceneType::CourseSelect;
+        slideOut();
+        break;
+    case SelectSlot::Action::Skip:
+        m_nextScene = SceneType::None;
+        slideOut();
+        break;
+    }
+}
 
 void SceneGhostLoad::stateNextScene() {
+    if (m_selectSlot.isWaiting()) {
+        return;
+    }
+
     if (!SequenceApp::Instance()->ready(m_nextScene)) {
         return;
     }
@@ -101,6 +125,10 @@ void SceneGhostLoad::stateNextScene() {
 }
 
 void SceneGhostLoad::stateNextRace() {
+    if (m_selectSlot.isWaiting()) {
+        return;
+    }
+
     if (!SequenceApp::Instance()->checkFinishAllLoading()) {
         return;
     }

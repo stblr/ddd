@@ -50,6 +50,14 @@ void SelectSlot::initLoad() {
     m_isQuitBtnSelected = true;
 }
 
+void SelectSlot::frameOut() {
+    for (u32 i = 0; i < m_cards.count(); i++) {
+        m_cards[i].frameOut();
+    }
+    m_quitBtn.frameOut();
+    m_state = State::FrameOut;
+}
+
 u8 SelectSlot::GhostFileInfoTable::count() const {
     return m_count;
 }
@@ -88,6 +96,11 @@ void SelectSlot::Card::select() {
     m_state = State::Selected;
 }
 
+void SelectSlot::Card::frameOut() {
+    m_anmState = AnmState::FrameOut;
+    // TODO set anm frame?
+}
+
 SelectSlot::QuitBtn::QuitBtn() {}
 
 SelectSlot::QuitBtn::~QuitBtn() {}
@@ -102,6 +115,11 @@ bool SelectSlot::QuitBtn::hasFrameOutAnm() const {
 
 void SelectSlot::QuitBtn::deselect() {
     m_state = State::Selectable;
+}
+
+void SelectSlot::QuitBtn::frameOut() {
+    m_anmState = AnmState::FrameOut;
+    // TODO set anm frame?
 }
 
 bool SelectSlot::hasFrameInAnm() const {

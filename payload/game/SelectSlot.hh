@@ -7,6 +7,19 @@
 
 class SelectSlot {
 public:
+    class Action {
+    public:
+        enum {
+            None = 0,
+            Next = 1,
+            Prev = 2,
+            Skip = 3,
+        };
+
+    private:
+        Action();
+    };
+
     SelectSlot();
     ~SelectSlot();
 
@@ -19,6 +32,8 @@ public:
     void calcAnm();
     void initLoad();
     void frameIn();
+    void frameOut();
+    u32 selectSlot();
 
 private:
     class GhostFileInfoTable {
@@ -42,6 +57,7 @@ private:
         bool hasFrameOutAnm() const;
         void calcAnm();
         void select();
+        void frameOut();
 
     private:
         class State {
@@ -85,6 +101,7 @@ private:
         bool hasFrameOutAnm() const;
         void calcAnm();
         void deselect();
+        void frameOut();
 
     private:
         class State {
