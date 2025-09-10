@@ -49,6 +49,8 @@ private:
 
     void handleEXT();
     bool init();
+    void initMACAddr();
+    bool getLinkStatus();
 
     void reset();
     bool bitFieldSet(u8 address, u8 bits);
@@ -70,6 +72,8 @@ private:
     u32 m_device;
     bool m_wasDetached;
     u8 m_bank;
+    bool m_linkStatus;
+    u8 m_macAddr[6];
 
     static VirtualETH *s_instance;
 };

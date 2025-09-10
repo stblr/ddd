@@ -28,10 +28,12 @@
 
 #include <cube/Arena.hh>
 #include <cube/Clock.hh>
+#include <cube/ECID.hh>
 #include <cube/EXI.hh>
 extern "C" {
 #include <dolphin/EXIBios.h>
 }
+#include <portable/Bytes.hh>
 #include <portable/Log.hh>
 
 s32 VirtualETH::init(s32 /* mode */) {
@@ -55,6 +57,11 @@ s32 VirtualETH::init(s32 /* mode */) {
         }
     }
     return -1;
+}
+
+BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
+    *status = m_linkStatus;
+    return true;
 }
 
 void VirtualETH::Init() {
@@ -105,6 +112,7 @@ bool VirtualETH::init() {
     s64 start = Clock::GetMonotonicTicks();
     do {
         if (!readControlRegister(ESTAT, estat, false)) {
+            DEBUG("Failed to read ESTAT");
             return false;
         }
 
@@ -113,16 +121,18 @@ bool VirtualETH::init() {
         }
     } while (Clock::GetMonotonicTicks() < start + Clock::MicrosecondsToTicks(300));
     if (!(estat & 1 << 0)) {
+        DEBUG("Unexpected ESTAT %02x", estat);
         return false;
     }
-    INFO("estat ok");
 
     u16 phid1;
     if (!readPHYRegister(PHID1, phid1)) {
+        DEBUG("Failed to read PHID1");
         return false;
     }
     u16 phid2;
     if (!readPHYRegister(PHID2, phid2)) {
+        DEBUG("Failed to read PHID2");
         return false;
     }
     u32 phid = phid1 << 16 | phid2 << 0;
@@ -131,7 +141,55 @@ bool VirtualETH::init() {
         return false;
     }
 
+    // TODO is this useful?
+    /*if (!getLinkStatus()) {
+        DEBUG("Failed to get link status");
+        return false;
+    }
+    if (!m_linkStatus) {
+        DEBUG("Unexpected link status");
+        return false;
+    }*/
+
+    initMACAddr();
+    const u8 *m = m_macAddr;
+    DEBUG("%02x:%02x:%02x:%02x:%02x:%02x", m[0], m[1], m[2], m[3], m[4], m[5]);
+
     return false;
+}
+
+bool VirtualETH::getLinkStatus() {
+    u16 phstat2;
+    if (!readPHYRegister(PHSTAT2, phstat2)) {
+        return false;
+    }
+
+    m_linkStatus = phstat2 & 1 << 10;
+    return true;
+}
+
+void VirtualETH::initMACAddr() {
+    Array<u32, 4> ecid = ECID::Get();
+    Array<u8, 19> data;
+    for (u32 i = 0; i < ecid.count(); i++) {
+        Bytes::WriteBE<u32>(data.values(), i * 4, ecid[i]);
+    }
+    data[16] = 0x04;
+    data[17] = 0xa3;
+    data[18] = 0x00;
+
+    u32 sum = m_channel;
+    for (u32 i = 0; i < 6; i++) {
+        sum += Bytes::ReadBE<u32>(data.values(), i * 3) >> 8;
+        sum = (sum & 0xffffff) + (sum >> 24);
+    }
+
+    m_macAddr[0] = 0x00;
+    m_macAddr[1] = 0x09;
+    m_macAddr[2] = 0xbf;
+    m_macAddr[3] = sum >> 16;
+    m_macAddr[4] = sum >> 8;
+    m_macAddr[5] = sum >> 0;
 }
 
 void VirtualETH::reset() {
