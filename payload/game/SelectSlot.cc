@@ -54,6 +54,15 @@ void SelectSlot::initLoad() {
     }
 }
 
+void SelectSlot::frameIn() {
+    // TODO watchCardState?
+    for (u32 i = 0; i < m_cards.count(); i++) {
+        m_cards[i].frameIn();
+    }
+    m_quitBtn.frameIn();
+    m_state = State::FrameIn;
+}
+
 void SelectSlot::frameOut() {
     for (u32 i = 0; i < m_cards.count(); i++) {
         m_cards[i].frameOut();
@@ -100,6 +109,11 @@ void SelectSlot::Card::select() {
     m_state = State::Selected;
 }
 
+void SelectSlot::Card::frameIn() {
+    m_anmState = AnmState::FrameIn;
+    // TODO set anm frame?
+}
+
 void SelectSlot::Card::frameOut() {
     m_anmState = AnmState::FrameOut;
     // TODO set anm frame?
@@ -119,6 +133,11 @@ bool SelectSlot::QuitBtn::hasFrameOutAnm() const {
 
 void SelectSlot::QuitBtn::deselect() {
     m_state = State::Selectable;
+}
+
+void SelectSlot::QuitBtn::frameIn() {
+    m_anmState = AnmState::FrameIn;
+    // TODO set anm frame?
 }
 
 void SelectSlot::QuitBtn::frameOut() {

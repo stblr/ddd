@@ -58,6 +58,7 @@ private:
         bool hasFrameOutAnm() const;
         void calcAnm();
         void select();
+        void frameIn();
         void frameOut();
 
     private:
@@ -102,6 +103,7 @@ private:
         bool hasFrameOutAnm() const;
         void calcAnm();
         void deselect();
+        void frameIn();
         void frameOut();
 
     private:

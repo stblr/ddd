@@ -387,7 +387,6 @@
 8016cd54 init__10SelectSlotFv
 8016cffc processCards__10SelectSlotFv
 8016d238 selectSlot__10SelectSlotFv
-8016d70c frameIn__10SelectSlotFv
 8016eee0 __ct__Q210SelectSlot4CardFv
 8016f48c checkCard__19SceneGhostCheckSaveFv
 801737cc stateNextBattle__14SceneMapSelectFv
