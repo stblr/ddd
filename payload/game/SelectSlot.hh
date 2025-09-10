@@ -25,6 +25,7 @@ public:
 
     bool isWaiting() const;
     bool canLoad() const;
+    bool isIdle() const;
     void setup(JKRArchive *archive, JKRHeap *heap);
     void init();
     void draw(const J2DGraphContext *graphContext);

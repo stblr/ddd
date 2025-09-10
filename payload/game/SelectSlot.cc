@@ -12,6 +12,10 @@ bool SelectSlot::canLoad() const {
     return m_cards.any(&Card::canLoad);
 }
 
+bool SelectSlot::isIdle() const {
+    return m_state == State::Idle;
+}
+
 void SelectSlot::draw(const J2DGraphContext *graphContext) {
     m_screen->draw(0.0f, 0.0f, graphContext);
 }
@@ -44,10 +48,10 @@ void SelectSlot::initLoad() {
             m_cards[i].select();
             m_quitBtn.deselect();
             m_slotIndex = i;
+            m_isQuitBtnSelected = false;
             return;
         }
     }
-    m_isQuitBtnSelected = true;
 }
 
 void SelectSlot::frameOut() {

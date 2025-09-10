@@ -84,7 +84,9 @@ void SceneGhostLoad::stateWait() {
 }
 
 void SceneGhostLoad::stateSlideIn() {
-    idle();
+    if (m_selectSlot.isIdle()) {
+        idle();
+    }
 }
 
 void SceneGhostLoad::stateSlideOut() {
