@@ -36,6 +36,10 @@ extern "C" {
 #include <portable/Bytes.hh>
 #include <portable/Log.hh>
 
+extern "C" {
+#include <string.h>
+}
+
 s32 VirtualETH::init(s32 /* mode */) {
     for (u32 i = 0; i < 4; i++) {
         m_channel = i < 2 ? 2 - i : 0;
@@ -57,6 +61,10 @@ s32 VirtualETH::init(s32 /* mode */) {
         }
     }
     return -1;
+}
+
+void VirtualETH::getMACAddr(u8 macaddr[6]) {
+    memcpy(macaddr, m_macAddr, 6);
 }
 
 BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
@@ -151,7 +159,38 @@ bool VirtualETH::init() {
         return false;
     }*/
 
-    initMACAddr();
+#define DUMP_REG(reg) \
+    { \
+        u16 r; \
+        if (!readControlRegister(reg, r, false)) { \
+            return false; \
+        } \
+        DEBUG(#reg ": %04x", r); \
+    }
+
+    DUMP_REG(ERDPT)   // 1530 -> 0
+    DUMP_REG(EWRPT)   // 0 -> 4096
+    DUMP_REG(ETXST)   // 0 -> 4096
+    DUMP_REG(ETXND)   // 0 -> 8191
+    DUMP_REG(ERXST)   // 1530 -> 0
+    DUMP_REG(ERXND)   // 8191 -> 4095
+    DUMP_REG(ERXRDPT) // 1530 -> 4095
+    DUMP_REG(ERXWRPT) // 0
+
+    if (!initFilters()) {
+        DEBUG("Failed to initialize filters");
+        return false;
+    }
+
+    if (!initMAC()) {
+        DEBUG("Failed to initialize MAC");
+        return false;
+    }
+
+    if (!initMACAddr()) {
+        DEBUG("Failed to initialize MAC address");
+        return false;
+    }
     const u8 *m = m_macAddr;
     DEBUG("%02x:%02x:%02x:%02x:%02x:%02x", m[0], m[1], m[2], m[3], m[4], m[5]);
 
@@ -159,6 +198,7 @@ bool VirtualETH::init() {
 }
 
 bool VirtualETH::getLinkStatus() {
+    // TODO latch?
     u16 phstat2;
     if (!readPHYRegister(PHSTAT2, phstat2)) {
         return false;
@@ -168,7 +208,42 @@ bool VirtualETH::getLinkStatus() {
     return true;
 }
 
-void VirtualETH::initMACAddr() {
+bool VirtualETH::initFilters() {
+    u8 erxfcon = 0;
+    erxfcon |= 1 << 7; // UCEN
+    erxfcon |= 1 << 5; // CRCEN
+    erxfcon |= 1 << 1; // MCEN
+    erxfcon |= 1 << 0; // BCEN
+    return writeControlRegister(ERXFCON, erxfcon);
+}
+
+bool VirtualETH::initMAC() {
+    bool result = true;
+
+    u8 macon1 = 0;
+    macon1 |= 1 << 0; // MARXEN
+    result = result && writeControlRegister(MACON1, macon1);
+
+    u8 macon3 = 0;
+    macon3 |= 1 << 5; // PADCFG
+    macon3 |= 1 << 4; // TXCRCEN
+    macon3 |= 1 << 1; // FRMLNEN
+    result = result && writeControlRegister(MACON3, macon3);
+
+    u8 macon4 = 0;
+    macon4 |= 1 << 6; // DEFER
+    result = result && writeControlRegister(MACON4, macon4);
+
+    u8 mabbipg = 0x12;
+    result = result && writeControlRegister(MABBIPG, mabbipg);
+
+    u16 maipg = 0x0c12;
+    result = result && writeControlRegister(MAIPG, maipg);
+
+    return result;
+}
+
+bool VirtualETH::initMACAddr() {
     Array<u32, 4> ecid = ECID::Get();
     Array<u8, 19> data;
     for (u32 i = 0; i < ecid.count(); i++) {
@@ -190,6 +265,37 @@ void VirtualETH::initMACAddr() {
     m_macAddr[3] = sum >> 16;
     m_macAddr[4] = sum >> 8;
     m_macAddr[5] = sum >> 0;
+
+    bool result = true;
+    result = result && writeControlRegister(MAADR1, m_macAddr[0]);
+    result = result && writeControlRegister(MAADR2, m_macAddr[1]);
+    result = result && writeControlRegister(MAADR3, m_macAddr[2]);
+    result = result && writeControlRegister(MAADR4, m_macAddr[3]);
+    result = result && writeControlRegister(MAADR5, m_macAddr[4]);
+    result = result && writeControlRegister(MAADR6, m_macAddr[5]);
+    return result;
+}
+
+bool VirtualETH::initPHY() {
+    bool result = true;
+
+    u16 phcon2 = 0;
+    phcon2 |= 1 << 8; // HDLDIS
+    result = result && writePHYRegister(PHCON2, phcon2);
+
+    u16 phlcon = 0;
+    phlcon |= 1 << 13; // Reserved
+    phlcon |= 1 << 12; // Reserved
+    phlcon |= 4 << 8;  // LACFG
+    phlcon |= 7 << 4;  // LBCFG
+    phlcon |= 1 << 2;  // LFRQ
+    phlcon |= 1 << 1;  // STRCH
+    result = result && writePHYRegister(PHLCON, phlcon);
+
+    // TODO PHIE
+    // TODO result helper?
+
+    return result;
 }
 
 void VirtualETH::reset() {
