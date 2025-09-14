@@ -1,6 +1,7 @@
 #include "SceneFactory.hh"
 
 #include "game/ResMgr.hh"
+#include "game/SceneCardSelect.hh"
 #include "game/SceneCharacterSelect.hh"
 #include "game/SceneCoursePoll.hh"
 #include "game/SceneFormatSelect.hh"
@@ -101,6 +102,12 @@ void SceneFactory::loadData(s32 sceneType, JKRHeap *heap) {
     case SceneType::GhostLoad:
         REPLACED(loadData)(SceneType::GhostCheckSave, heap);
         return;
+    case SceneType::CardSelect:
+        REPLACED(loadData)(SceneType::GhostCheckSave, heap);
+        return;
+    case SceneType::GhostSelect:
+        REPLACED(loadData)(SceneType::GhostCheckSave, heap);
+        return;
     }
 
     REPLACED(loadData)(sceneType, heap);
@@ -186,6 +193,10 @@ Scene *SceneFactory::createScene(s32 sceneType, JKRHeap *heap) {
     case SceneType::GhostLoad:
         sysDebug->setHeapGroup("GhostLoad", heap);
         scene = new (heap, 0x0) SceneGhostLoad(m_archives[ArchiveType::GhostData], heap);
+        break;
+    case SceneType::CardSelect:
+        sysDebug->setHeapGroup("CardSelect", heap);
+        scene = new (heap, 0x0) SceneCardSelect(m_archives[ArchiveType::GhostData], heap);
         break;
     default:
         return REPLACED(createScene)(sceneType, heap);

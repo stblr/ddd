@@ -30,7 +30,9 @@ public:
         MapSelect = 0x1a,       // Moved
         CoursePoll = 0x1b,      // Added
         GhostLoad = 0x1c,       // Added
-        Count = 0x1d,
+        CardSelect = 0x1d,      // Added
+        GhostSelect = 0x1e,     // Added
+        Count = 0x1f,
     };
 
 private:
