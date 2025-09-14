@@ -3,6 +3,7 @@
 #include "game/Scene.hh"
 
 #include <jsystem/J2DScreen.hh>
+#include <portable/Array.hh>
 
 class SceneCardSelect : public Scene {
 public:
@@ -13,6 +14,10 @@ public:
     void calc() override;
 
 private:
+    enum {
+        CardCount = 2,
+    };
+
     typedef void (SceneCardSelect::*State)();
 
     void wait();
@@ -32,4 +37,8 @@ private:
     State m_state;
     u32 m_nextScene;
     J2DScreen m_screen;
+    Array<J2DAnmBase *, CardCount> m_cardAnmTransforms;
+    J2DAnmBase *m_skipAnmTransform;
+    Array<u8, CardCount> m_cardAnmTransformFrames;
+    u8 m_skipAnmTransformFrame;
 };
