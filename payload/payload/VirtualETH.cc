@@ -26,6 +26,8 @@
 
 #include "VirtualETH.hh"
 
+#include "payload/Lock.hh"
+
 #include <cube/Arena.hh>
 #include <cube/Clock.hh>
 #include <cube/ECID.hh>
@@ -69,7 +71,9 @@ void VirtualETH::getMACAddr(u8 macaddr[6]) {
 }
 
 BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
-    *status = m_linkStatus;
+    Lock<NoInterrupts> lock;
+    *status = m_latchingLinkStatus;
+    m_latchingLinkStatus = m_linkStatus;
     return true;
 }
 
@@ -81,16 +85,65 @@ VirtualETH *VirtualETH::Instance() {
     return s_instance;
 }
 
-VirtualETH::VirtualETH() {}
+VirtualETH::VirtualETH() {
+    OSInitMessageQueue(&m_queue, m_messages.values(), m_messages.count());
+    void *param = this;
+    OSCreateThread(&m_thread, Run, param, m_stack.values() + m_stack.count(), m_stack.count(), 2,
+            0);
+    OSResumeThread(&m_thread);
+}
+
+void *VirtualETH::run() {
+    DEBUG("run");
+    while (true) {
+        OSReceiveMessage(&m_queue, nullptr, OS_MESSAGE_BLOCK);
+        DEBUG("irq");
+
+        u8 eir;
+        if (!readControlRegister(EIR, eir, false)) {
+            continue;
+        }
+        DEBUG("EIR: %02x", eir);
+
+        u8 eirMask = 0;
+
+        if (eir & 1 << 4 /* LINKIF */) {
+            u16 phir;
+            if (readPHYRegister(PHIR, phir)) {
+                DEBUG("PHIR: %04x", phir);
+            }
+
+            u16 phstat1, phstat2;
+            if (readPHYRegister(PHSTAT1, phstat1) && readPHYRegister(PHSTAT2, phstat2)) {
+                DEBUG("PHSTAT1: %04x", phstat1);
+                DEBUG("PHSTAT2: %04x", phstat2);
+
+                Lock<NoInterrupts> lock;
+                if (!(phstat1 & 1 << 2 /* LLSTAT */)) {
+                    m_latchingLinkStatus = false;
+                }
+                m_linkStatus = phstat2 & 1 << 10;
+            }
+
+            eir &= ~(1 << 4); // LINKIF
+        }
+
+        bitFieldClear(EIR, eirMask);
+    }
+}
 
 void VirtualETH::handleEXT() {
     m_wasDetached = true;
 }
 
-void VirtualETH::handleEXI() {}
+void VirtualETH::handleEXI() {
+    OSSendMessage(&m_queue, nullptr, OS_MESSAGE_NOBLOCK);
+}
 
 bool VirtualETH::init() {
     m_bank = 0;
+    m_latchingLinkStatus = false;
+    m_linkStatus = false;
 
     // TODO is this useful?
     u32 id;
@@ -152,16 +205,6 @@ bool VirtualETH::init() {
         return false;
     }
 
-    // TODO is this useful?
-    /*if (!getLinkStatus()) {
-        DEBUG("Failed to get link status");
-        return false;
-    }
-    if (!m_linkStatus) {
-        DEBUG("Unexpected link status");
-        return false;
-    }*/
-
 #if 0
 #define DUMP_REG(reg) \
     { \
@@ -204,23 +247,16 @@ bool VirtualETH::init() {
         return false;
     }
 
+    if (!initInterrupts()) {
+        DEBUG("Failed to initialize interrupts");
+        return false;
+    }
+
     if (m_channel == 2) {
         OSSetInterruptHandler(25, HandleEXI);
     } else {
         EXISetExiCallback(m_channel + m_device, HandleEXI);
     }
-
-    return false;
-}
-
-bool VirtualETH::getLinkStatus() {
-    // TODO latch?
-    u16 phstat2;
-    if (!readPHYRegister(PHSTAT2, phstat2)) {
-        return false;
-    }
-
-    m_linkStatus = phstat2 & 1 << 10;
     return true;
 }
 
@@ -314,6 +350,13 @@ bool VirtualETH::initPHY() {
     result = result && writePHYRegister(PHIE, phie);
 
     return result;
+}
+
+bool VirtualETH::initInterrupts() {
+    u8 eieMask = 0;
+    eieMask |= 1 << 7; // INTIE
+    eieMask |= 1 << 4; // LINKIE
+    return bitFieldSet(EIE, eieMask);
 }
 
 void VirtualETH::reset() {
@@ -463,6 +506,10 @@ bool VirtualETH::write(u8 command, const void *buffer, u32 size, u32 frequency) 
         return false;
     }
     return device.dmaWrite(buffer, size);
+}
+
+void *VirtualETH::Run(void *param) {
+    return static_cast<VirtualETH *>(param)->run();
 }
 
 void VirtualETH::HandleEXT(s32 /* chan */, OSContext * /* context */) {

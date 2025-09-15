@@ -3,7 +3,10 @@
 extern "C" {
 #include <dolphin/ETH.h>
 #include <dolphin/OSContext.h>
+#include <dolphin/OSMessage.h>
+#include <dolphin/OSThread.h>
 }
+#include <portable/Array.hh>
 
 class VirtualETH {
 public:
@@ -69,6 +72,7 @@ private:
 
     VirtualETH();
 
+    void *run();
     void handleEXT();
     void handleEXI();
     bool init();
@@ -76,7 +80,7 @@ private:
     bool initMAC();
     bool initMACAddr();
     bool initPHY();
-    bool getLinkStatus();
+    bool initInterrupts();
 
     void reset();
     bool bitFieldSet(u8 address, u8 bits);
@@ -92,6 +96,7 @@ private:
     bool read(u8 command, void *buffer, u32 size, u32 frequency = 4);
     bool write(u8 command, const void *buffer, u32 size, u32 frequency = 4);
 
+    static void *Run(void *param);
     static void HandleEXT(s32 chan, OSContext *context);
     static void HandleEXI(s32 chan, OSContext *context);
     static void HandleEXI(s16 interrupt, OSContext *context);
@@ -100,8 +105,13 @@ private:
     u32 m_device;
     bool m_wasDetached;
     u8 m_bank;
+    bool m_latchingLinkStatus;
     bool m_linkStatus;
     u8 m_macAddr[6];
+    OSMessageQueue m_queue;
+    Array<OSMessage, 1> m_messages;
+    Array<u8, 4 * 1024> m_stack;
+    OSThread m_thread;
 
     static VirtualETH *s_instance;
 };

@@ -4,7 +4,6 @@
 #include "payload/CourseManager.hh"
 #include "payload/DVDStorage.hh"
 #include "payload/DirCreator.hh"
-#include "payload/Lock.hh"
 #include "payload/LogFile.hh"
 #include "payload/VirtualCard.hh"
 #include "payload/VirtualETH.hh"

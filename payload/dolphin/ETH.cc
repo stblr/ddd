@@ -13,6 +13,7 @@ s32 ETHInit(s32 mode) {
     s_virtualETH = VirtualETH::Instance();
     s32 result = s_virtualETH->init(mode);
     if (result >= 0) {
+        while (true) {}
         return result;
     }
 
