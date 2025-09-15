@@ -21,6 +21,7 @@ public:
 
 private:
     enum {
+#if 0
         ERDPT = 0x00,   // Read Pointer
         EWRPT = 0x02,   // Write Pointer
         ETXST = 0x04,   // TX Start
@@ -29,6 +30,7 @@ private:
         ERXND = 0x0a,   // RX End
         ERXRDPT = 0x0c, // RX RD Pointer
         ERXWRPT = 0x0e, // RX WR Pointer
+#endif
         EIE = 0x1b,
         EIR = 0x1c,
         ESTAT = 0x1d,
@@ -42,15 +44,15 @@ private:
         MAIPG = 0x46,
         MICMD = 0x52,
         MIREGADR = 0x54,
-        MIWR = 0x56,
-        MIRD = 0x58,
-        MAADR5 = 0x60,
-        MAADR6 = 0x61,
-        MAADR3 = 0x62,
-        MAADR4 = 0x63,
-        MAADR1 = 0x64,
-        MAADR2 = 0x65,
-        MISTAT = 0x6a,
+        MIWR = 0x56,   // MII Write Data
+        MIRD = 0x58,   // MII Read Data
+        MAADR5 = 0x60, // MAC Address Byte 5
+        MAADR6 = 0x61, // MAC Address Byte 6
+        MAADR3 = 0x62, // MAC Address Byte 3
+        MAADR4 = 0x63, // MAC Address Byte 4
+        MAADR1 = 0x64, // MAC Address Byte 1
+        MAADR2 = 0x65, // MAC Address Byte 2
+        MISTAT = 0x6a, // MII Status
     };
 
     enum {
@@ -68,6 +70,7 @@ private:
     VirtualETH();
 
     void handleEXT();
+    void handleEXI();
     bool init();
     bool initFilters();
     bool initMAC();
@@ -90,6 +93,8 @@ private:
     bool write(u8 command, const void *buffer, u32 size, u32 frequency = 4);
 
     static void HandleEXT(s32 chan, OSContext *context);
+    static void HandleEXI(s32 chan, OSContext *context);
+    static void HandleEXI(s16 interrupt, OSContext *context);
 
     u32 m_channel;
     u32 m_device;

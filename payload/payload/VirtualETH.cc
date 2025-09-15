@@ -32,6 +32,7 @@
 #include <cube/EXI.hh>
 extern "C" {
 #include <dolphin/EXIBios.h>
+#include <dolphin/OSInterrupt.h>
 }
 #include <portable/Bytes.hh>
 #include <portable/Log.hh>
@@ -85,6 +86,8 @@ VirtualETH::VirtualETH() {}
 void VirtualETH::handleEXT() {
     m_wasDetached = true;
 }
+
+void VirtualETH::handleEXI() {}
 
 bool VirtualETH::init() {
     m_bank = 0;
@@ -159,6 +162,7 @@ bool VirtualETH::init() {
         return false;
     }*/
 
+#if 0
 #define DUMP_REG(reg) \
     { \
         u16 r; \
@@ -176,6 +180,7 @@ bool VirtualETH::init() {
     DUMP_REG(ERXND)   // 8191 -> 4095
     DUMP_REG(ERXRDPT) // 1530 -> 4095
     DUMP_REG(ERXWRPT) // 0
+#endif
 
     if (!initFilters()) {
         DEBUG("Failed to initialize filters");
@@ -193,6 +198,17 @@ bool VirtualETH::init() {
     }
     const u8 *m = m_macAddr;
     DEBUG("%02x:%02x:%02x:%02x:%02x:%02x", m[0], m[1], m[2], m[3], m[4], m[5]);
+
+    if (!initPHY()) {
+        DEBUG("Failed to initialize PHY");
+        return false;
+    }
+
+    if (m_channel == 2) {
+        OSSetInterruptHandler(25, HandleEXI);
+    } else {
+        EXISetExiCallback(m_channel + m_device, HandleEXI);
+    }
 
     return false;
 }
@@ -292,8 +308,10 @@ bool VirtualETH::initPHY() {
     phlcon |= 1 << 1;  // STRCH
     result = result && writePHYRegister(PHLCON, phlcon);
 
-    // TODO PHIE
-    // TODO result helper?
+    u16 phie = 0;
+    phie |= 1 << 4; // PLNKIE
+    phie |= 1 << 1; // PGEIE
+    result = result && writePHYRegister(PHIE, phie);
 
     return result;
 }
@@ -449,6 +467,14 @@ bool VirtualETH::write(u8 command, const void *buffer, u32 size, u32 frequency) 
 
 void VirtualETH::HandleEXT(s32 /* chan */, OSContext * /* context */) {
     s_instance->handleEXT();
+}
+
+void VirtualETH::HandleEXI(s32 /* chan */, OSContext * /* context */) {
+    s_instance->handleEXI();
+}
+
+void VirtualETH::HandleEXI(s16 /* interrupt */, OSContext * /* context */) {
+    s_instance->handleEXI();
 }
 
 VirtualETH *VirtualETH::s_instance = nullptr;
