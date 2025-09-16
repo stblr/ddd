@@ -107,6 +107,37 @@ void *VirtualETH::run() {
 
         u8 eirMask = 0;
 
+        if (eir & 1 << 6 /* PKTIF */) {
+#define DUMP_REG2(reg) \
+    { \
+        u16 r; \
+        if (readControlRegister(reg, r, false)) { \
+            DEBUG(#reg ": %04x", r); \
+        } \
+    }
+
+            DUMP_REG2(ERDPT)   // 1530 -> 0 -> 1530
+            DUMP_REG2(EWRPT)   // 0 -> 4096 -> 0
+            DUMP_REG2(ETXST)   // 0 -> 4096 -> 0
+            DUMP_REG2(ETXND)   // 0 -> 8191 -> 1529
+            DUMP_REG2(ERXST)   // 1530 -> 0 -> 1530
+            DUMP_REG2(ERXND)   // 8191 -> 4095 -> 8191
+            DUMP_REG2(ERXRDPT) // 1530 -> 4095 -> 8191
+            DUMP_REG2(ERXWRPT) // 0
+
+            Array<u8, 6> header;
+            if (readBufferMemory(header.values(), header.count())) {
+                u16 nextPacket = Bytes::ReadLE<u16>(header.values(), 0);
+                u16 byteCount = Bytes::ReadLE<u16>(header.values(), 2);
+                u16 status = Bytes::ReadLE<u16>(header.values(), 4);
+                DEBUG("nextPacket: %04x", nextPacket);
+                DEBUG("byteCount: %04x", byteCount);
+                DEBUG("status: %04x", status);
+            }
+
+            eirMask |= 1 << 6; // PKTIF
+        }
+
         if (eir & 1 << 4 /* LINKIF */) {
             u16 phir;
             if (readPHYRegister(PHIR, phir)) {
@@ -124,8 +155,6 @@ void *VirtualETH::run() {
                 }
                 m_linkStatus = phstat2 & 1 << 10;
             }
-
-            eir &= ~(1 << 4); // LINKIF
         }
 
         bitFieldClear(EIR, eirMask);
@@ -205,7 +234,6 @@ bool VirtualETH::init() {
         return false;
     }
 
-#if 0
 #define DUMP_REG(reg) \
     { \
         u16 r; \
@@ -215,15 +243,23 @@ bool VirtualETH::init() {
         DEBUG(#reg ": %04x", r); \
     }
 
-    DUMP_REG(ERDPT)   // 1530 -> 0
-    DUMP_REG(EWRPT)   // 0 -> 4096
-    DUMP_REG(ETXST)   // 0 -> 4096
-    DUMP_REG(ETXND)   // 0 -> 8191
-    DUMP_REG(ERXST)   // 1530 -> 0
-    DUMP_REG(ERXND)   // 8191 -> 4095
-    DUMP_REG(ERXRDPT) // 1530 -> 4095
+    DUMP_REG(ERDPT)   // 1530 -> 0 -> 1530
+    DUMP_REG(EWRPT)   // 0 -> 4096 -> 0
+    DUMP_REG(ETXST)   // 0 -> 4096 -> 0
+    DUMP_REG(ETXND)   // 0 -> 8191 -> 1529
+    DUMP_REG(ERXST)   // 1530 -> 0 -> 1530
+    DUMP_REG(ERXND)   // 8191 -> 4095 -> 8191
+    DUMP_REG(ERXRDPT) // 1530 -> 4095 -> 8191
     DUMP_REG(ERXWRPT) // 0
-#endif
+
+    u16 erxnd = 8191;
+    if (!writeControlRegister(ERXND, erxnd)) {
+        return false;
+    }
+
+    DUMP_REG(ERXST)   // 1530 -> 0 -> 1530
+    DUMP_REG(ERXND)   // 1530 -> 0 -> 1530
+    DUMP_REG(ERXWRPT) // 0
 
     if (!initFilters()) {
         DEBUG("Failed to initialize filters");
@@ -247,8 +283,8 @@ bool VirtualETH::init() {
         return false;
     }
 
-    if (!initInterrupts()) {
-        DEBUG("Failed to initialize interrupts");
+    if (!initEthernet()) {
+        DEBUG("Failed to initialize Ethernet");
         return false;
     }
 
@@ -352,11 +388,20 @@ bool VirtualETH::initPHY() {
     return result;
 }
 
-bool VirtualETH::initInterrupts() {
+bool VirtualETH::initEthernet() {
+    bool result = true;
+
     u8 eieMask = 0;
     eieMask |= 1 << 7; // INTIE
+    eieMask |= 1 << 6; // PKTIE
     eieMask |= 1 << 4; // LINKIE
-    return bitFieldSet(EIE, eieMask);
+    result = result && bitFieldSet(EIE, eieMask);
+
+    u8 econ1Mask = 0;
+    econ1Mask |= 1 << 2; // RXEN
+    result = result && bitFieldSet(ECON1, econ1Mask);
+
+    return result;
 }
 
 void VirtualETH::reset() {
@@ -484,6 +529,14 @@ bool VirtualETH::writePHYRegister(u8 address, u16 data) {
         }
     } while (Clock::GetMonotonicTicks() < start + Clock::MicrosecondsToTicks(150));
     return false;
+}
+
+bool VirtualETH::readBufferMemory(void *buffer, u32 size) {
+    return read(0x3a, buffer, size);
+}
+
+bool VirtualETH::writeBufferMemory(const void *buffer, u32 size) {
+    return write(0x7a, buffer, size);
 }
 
 bool VirtualETH::read(u8 command, void *buffer, u32 size, u32 frequency) {

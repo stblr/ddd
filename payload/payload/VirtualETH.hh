@@ -24,16 +24,14 @@ public:
 
 private:
     enum {
-#if 0
-        ERDPT = 0x00,   // Read Pointer
-        EWRPT = 0x02,   // Write Pointer
-        ETXST = 0x04,   // TX Start
-        ETXND = 0x06,   // TX End
-        ERXST = 0x08,   // RX Start
-        ERXND = 0x0a,   // RX End
-        ERXRDPT = 0x0c, // RX RD Pointer
-        ERXWRPT = 0x0e, // RX WR Pointer
-#endif
+        ERDPT = 0x00,    // Read Pointer
+        EWRPT = 0x02,    // Write Pointer
+        ETXST = 0x04,    // TX Start
+        ETXND = 0x06,    // TX End
+        ERXST = 0x08,    // RX Start
+        ERXND = 0x0a,    // RX End
+        ERXRDPT = 0x0c,  // RX RD Pointer
+        ERXWRPT = 0x0e,  // RX WR Pointer
         EIE = 0x1b,      // Ethernet Interrupt Enable
         EIR = 0x1c,      // Ethernet Interrupt Request
         ESTAT = 0x1d,    // Ethernet Status
@@ -80,7 +78,7 @@ private:
     bool initMAC();
     bool initMACAddr();
     bool initPHY();
-    bool initInterrupts();
+    bool initEthernet();
 
     void reset();
     bool bitFieldSet(u8 address, u8 bits);
@@ -92,6 +90,8 @@ private:
     bool writeControlRegister(u8 address, u16 data);
     bool readPHYRegister(u8 address, u16 &data);
     bool writePHYRegister(u8 address, u16 data);
+    bool readBufferMemory(void *buffer, u32 size);
+    bool writeBufferMemory(const void *buffer, u32 size);
 
     bool read(u8 command, void *buffer, u32 size, u32 frequency = 4);
     bool write(u8 command, const void *buffer, u32 size, u32 frequency = 4);
