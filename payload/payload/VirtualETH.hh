@@ -34,40 +34,40 @@ private:
         ERXRDPT = 0x0c, // RX RD Pointer
         ERXWRPT = 0x0e, // RX WR Pointer
 #endif
-        EIE = 0x1b,
-        EIR = 0x1c,
-        ESTAT = 0x1d,
-        ECON2 = 0x1e,
-        ECON1 = 0x1f,
-        ERXFCON = 0x38,
-        MACON1 = 0x40,
-        MACON3 = 0x42,
-        MACON4 = 0x43,
-        MABBIPG = 0x44,
-        MAIPG = 0x46,
-        MICMD = 0x52,
-        MIREGADR = 0x54,
-        MIWR = 0x56,   // MII Write Data
-        MIRD = 0x58,   // MII Read Data
-        MAADR5 = 0x60, // MAC Address Byte 5
-        MAADR6 = 0x61, // MAC Address Byte 6
-        MAADR3 = 0x62, // MAC Address Byte 3
-        MAADR4 = 0x63, // MAC Address Byte 4
-        MAADR1 = 0x64, // MAC Address Byte 1
-        MAADR2 = 0x65, // MAC Address Byte 2
-        MISTAT = 0x6a, // MII Status
+        EIE = 0x1b,      // Ethernet Interrupt Enable
+        EIR = 0x1c,      // Ethernet Interrupt Request
+        ESTAT = 0x1d,    // Ethernet Status
+        ECON2 = 0x1e,    // Ethernet Control 2
+        ECON1 = 0x1f,    // Ethernet Control 1
+        ERXFCON = 0x38,  // Ethernet Receive Filter Control
+        MACON1 = 0x40,   // MAC Control 1
+        MACON3 = 0x42,   // MAC Control 3
+        MACON4 = 0x43,   // MAC Control 4
+        MABBIPG = 0x44,  // MAC Back-to-Back Inter-Packet Gap
+        MAIPG = 0x46,    // MAC Non-Back-to-Back Inter-Packet Gap
+        MICMD = 0x52,    // MII Command
+        MIREGADR = 0x54, // MII Register Addres
+        MIWR = 0x56,     // MII Write Data
+        MIRD = 0x58,     // MII Read Data
+        MAADR5 = 0x60,   // MAC Address Byte 5
+        MAADR6 = 0x61,   // MAC Address Byte 6
+        MAADR3 = 0x62,   // MAC Address Byte 3
+        MAADR4 = 0x63,   // MAC Address Byte 4
+        MAADR1 = 0x64,   // MAC Address Byte 1
+        MAADR2 = 0x65,   // MAC Address Byte 2
+        MISTAT = 0x6a,   // MII Status
     };
 
     enum {
-        PHCON1 = 0x00, // PHY Control 1
-        PHSTAT1 = 0x01,
-        PHID1 = 0x02,  // PHY Device ID 1
-        PHID2 = 0x03,  // PHY Device ID 2
-        PHCON2 = 0x10, // PHY Control 2
-        PHSTAT2 = 0x11,
-        PHIE = 0x12,   // PHY Interrupt Enable
-        PHIR = 0x13,   // PHY Interrupt Request
-        PHLCON = 0x14, // PHY Module LED Control
+        PHCON1 = 0x00,  // PHY Control 1
+        PHSTAT1 = 0x01, // Physical Layer Status 1
+        PHID1 = 0x02,   // PHY Device ID 1
+        PHID2 = 0x03,   // PHY Device ID 2
+        PHCON2 = 0x10,  // PHY Control 2
+        PHSTAT2 = 0x11, // Physical Layer Status 2
+        PHIE = 0x12,    // PHY Interrupt Enable
+        PHIR = 0x13,    // PHY Interrupt Request
+        PHLCON = 0x14,  // PHY Module LED Control
     };
 
     VirtualETH();
