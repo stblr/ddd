@@ -23,6 +23,12 @@ s32 ETHInit(s32 mode) {
 
 void ETHGetMACAddr(u8 *macaddr) {
     DEBUG("ETHGetMACAddr %p", macaddr);
+
+    if (s_virtualETH) {
+        s_virtualETH->getMACAddr(macaddr);
+        return;
+    }
+
     REPLACED(ETHGetMACAddr)(macaddr);
 }
 
@@ -33,6 +39,11 @@ void ETHSetRecvCallback(ETHCallback0 callback0, ETHCallback1 callback1) {
 
 BOOL ETHGetLinkStateAsync(BOOL *status) {
     DEBUG("ETHGetLinkStateAsync %p", status);
+
+    if (s_virtualETH) {
+        return s_virtualETH->getLinkStateAsync(status);
+    }
+
     return REPLACED(ETHGetLinkStateAsync)(status);
 }
 
