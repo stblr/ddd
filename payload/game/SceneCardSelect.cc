@@ -22,6 +22,10 @@ SceneCardSelect::SceneCardSelect(JKRArchive *archive, JKRHeap *heap) : Scene(arc
         m_buttonScreens[i].set("LoadGhostButton.blo", 0x20000, m_archive);
     }
 
+    for (u32 i = 0; i < m_buttonScreens.count(); i++) {
+        m_buttonLayoutScreen.search("Button%u", i)->appendChild(&m_buttonScreens[i]);
+    }
+
     for (u32 i = 0; i < m_cardAnmTransforms.count(); i++) {
         m_cardAnmTransforms[i] = J2DAnmLoaderDataBase::Load("SelectMemoryCard.bck", m_archive);
         m_cardScreen.search("MeSlot_%c", "AB"[i])->setAnimation(m_cardAnmTransforms[i]);
@@ -62,6 +66,14 @@ void SceneCardSelect::calc() {
     m_skipAnmTransform->m_frame = m_skipAnmTransformFrame;
 
     m_cardScreen.animation();
+    m_ghostLayoutScreen.animation();
+    for (u32 i = 0; i < m_ghostScreens.count(); i++) {
+        m_ghostScreens[i].animationMaterials();
+    }
+    m_buttonLayoutScreen.animation();
+    for (u32 i = 0; i < m_buttonScreens.count(); i++) {
+        m_buttonScreens[i].animationMaterials();
+    }
 }
 
 void SceneCardSelect::wait() {
