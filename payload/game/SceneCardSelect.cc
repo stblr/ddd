@@ -12,14 +12,22 @@
 #include <jsystem/J2DAnmLoaderDataBase.hh>
 
 SceneCardSelect::SceneCardSelect(JKRArchive *archive, JKRHeap *heap) : Scene(archive, heap) {
-    m_screen.set("SelectMemoryCard.blo", 0x20000, m_archive);
+    m_cardScreen.set("SelectMemoryCard.blo", 0x20000, m_archive);
+    m_ghostLayoutScreen.set("GDIndexLayout.blo", 0x20000, m_archive);
+    for (u32 i = 0; i < m_ghostScreens.count(); i++) {
+        m_ghostScreens[i].set("GDIndexLine.blo", 0x20000, m_archive);
+    }
+    m_buttonLayoutScreen.set("LoadGhost.blo", 0x20000, m_archive);
+    for (u32 i = 0; i < m_buttonScreens.count(); i++) {
+        m_buttonScreens[i].set("LoadGhostButton.blo", 0x20000, m_archive);
+    }
 
     for (u32 i = 0; i < m_cardAnmTransforms.count(); i++) {
         m_cardAnmTransforms[i] = J2DAnmLoaderDataBase::Load("SelectMemoryCard.bck", m_archive);
-        m_screen.search("MeSlot_%c", "AB"[i])->setAnimation(m_cardAnmTransforms[i]);
+        m_cardScreen.search("MeSlot_%c", "AB"[i])->setAnimation(m_cardAnmTransforms[i]);
     }
     m_skipAnmTransform = J2DAnmLoaderDataBase::Load("SelectMemoryCard.bck", m_archive);
-    m_screen.search("NMemQuit")->setAnimation(m_skipAnmTransform);
+    m_cardScreen.search("NMemQuit")->setAnimation(m_skipAnmTransform);
 
     m_cardAnmTransformFrames.fill(0);
     m_skipAnmTransformFrame = 0;
@@ -37,7 +45,9 @@ void SceneCardSelect::draw() {
     MenuBackground::Instance()->draw(m_graphContext);
     MenuTitleLine::Instance()->draw(m_graphContext);
 
-    m_screen.draw(0.0f, 0.0f, m_graphContext);
+    m_cardScreen.draw(0.0f, 0.0f, m_graphContext);
+    m_ghostLayoutScreen.draw(0.0f, 0.0f, m_graphContext);
+    m_buttonLayoutScreen.draw(0.0f, 0.0f, m_graphContext);
 }
 
 void SceneCardSelect::calc() {
@@ -51,7 +61,7 @@ void SceneCardSelect::calc() {
     }
     m_skipAnmTransform->m_frame = m_skipAnmTransformFrame;
 
-    m_screen.animation();
+    m_cardScreen.animation();
 }
 
 void SceneCardSelect::wait() {

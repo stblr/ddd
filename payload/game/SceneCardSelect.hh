@@ -36,7 +36,11 @@ private:
 
     State m_state;
     u32 m_nextScene;
-    J2DScreen m_screen;
+    J2DScreen m_cardScreen;
+    J2DScreen m_ghostLayoutScreen;
+    Array<J2DScreen, 6> m_ghostScreens;
+    J2DScreen m_buttonLayoutScreen;
+    Array<J2DScreen, 2> m_buttonScreens;
     Array<J2DAnmBase *, CardCount> m_cardAnmTransforms;
     J2DAnmBase *m_skipAnmTransform;
     Array<u8, CardCount> m_cardAnmTransformFrames;
