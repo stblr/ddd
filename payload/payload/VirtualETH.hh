@@ -71,6 +71,8 @@ private:
     VirtualETH();
 
     void *run();
+    void handlePacket();
+    void handleLinkChange();
     void handleEXT();
     void handleEXI();
     bool init();
@@ -108,6 +110,8 @@ private:
     bool m_latchingLinkStatus;
     bool m_linkStatus;
     u8 m_macAddr[6];
+    ETHCallback0 m_callback0;
+    ETHCallback1 m_callback1;
     OSMessageQueue m_queue;
     Array<OSMessage, 1> m_messages;
     Array<u8, 4 * 1024> m_stack;

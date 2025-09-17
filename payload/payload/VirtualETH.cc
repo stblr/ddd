@@ -70,6 +70,12 @@ void VirtualETH::getMACAddr(u8 macaddr[6]) {
     memcpy(macaddr, m_macAddr, 6);
 }
 
+void VirtualETH::setRecvCallback(ETHCallback0 callback0, ETHCallback1 callback1) {
+    Lock<NoInterrupts> lock;
+    m_callback0 = callback0;
+    m_callback1 = callback1;
+}
+
 BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
     Lock<NoInterrupts> lock;
     *status = m_latchingLinkStatus;
@@ -108,6 +114,19 @@ void *VirtualETH::run() {
         u8 eirMask = 0;
 
         if (eir & 1 << 6 /* PKTIF */) {
+            handlePacket();
+            eirMask |= 1 << 6; // PKTIF
+        }
+
+        if (eir & 1 << 4 /* LINKIF */) {
+            handleLinkChange();
+        }
+
+        bitFieldClear(EIR, eirMask);
+    }
+}
+
+void VirtualETH::handlePacket() {
 #define DUMP_REG2(reg) \
     { \
         u16 r; \
@@ -116,48 +135,85 @@ void *VirtualETH::run() {
         } \
     }
 
-            DUMP_REG2(ERDPT)   // 1530 -> 0 -> 1530
-            DUMP_REG2(EWRPT)   // 0 -> 4096 -> 0
-            DUMP_REG2(ETXST)   // 0 -> 4096 -> 0
-            DUMP_REG2(ETXND)   // 0 -> 8191 -> 1529
-            DUMP_REG2(ERXST)   // 1530 -> 0 -> 1530
-            DUMP_REG2(ERXND)   // 8191 -> 4095 -> 8191
-            DUMP_REG2(ERXRDPT) // 1530 -> 4095 -> 8191
-            DUMP_REG2(ERXWRPT) // 0
+    DUMP_REG2(ERDPT)   // 1530 -> 0 -> 1530
+    DUMP_REG2(EWRPT)   // 0 -> 4096 -> 0
+    DUMP_REG2(ETXST)   // 0 -> 4096 -> 0
+    DUMP_REG2(ETXND)   // 0 -> 8191 -> 1529
+    DUMP_REG2(ERXST)   // 1530 -> 0 -> 1530
+    DUMP_REG2(ERXND)   // 8191 -> 4095 -> 8191
+    DUMP_REG2(ERXRDPT) // 1530 -> 4095 -> 8191
+    DUMP_REG2(ERXWRPT) // 0
 
-            Array<u8, 6> header;
-            if (readBufferMemory(header.values(), header.count())) {
-                u16 nextPacket = Bytes::ReadLE<u16>(header.values(), 0);
-                u16 byteCount = Bytes::ReadLE<u16>(header.values(), 2);
-                u16 status = Bytes::ReadLE<u16>(header.values(), 4);
-                DEBUG("nextPacket: %04x", nextPacket);
-                DEBUG("byteCount: %04x", byteCount);
-                DEBUG("status: %04x", status);
+    alignas(0x20) Array<u8, 0x40> head;
+    if (!readBufferMemory(head.values(), head.count())) {
+        return;
+    }
+
+    u16 nextPacket = Bytes::ReadLE<u16>(head.values(), 0x00);
+    u16 byteCount = Bytes::ReadLE<u16>(head.values(), 0x02);
+    u16 status = Bytes::ReadLE<u16>(head.values(), 0x04);
+    u16 protocol = Bytes::ReadBE<u16>(head.values(), 0x12);
+    DEBUG("nextPacket: %04x", nextPacket);
+    DEBUG("byteCount: %04x", byteCount);
+    DEBUG("status: %04x", status);
+    DEBUG("protocol: %04x", protocol);
+    DEBUG("06: %04x", Bytes::ReadBE<u16>(head.values(), 0x06));
+    DEBUG("08: %04x", Bytes::ReadBE<u16>(head.values(), 0x08));
+    DEBUG("0a: %04x", Bytes::ReadBE<u16>(head.values(), 0x0a));
+    DEBUG("0c: %04x", Bytes::ReadBE<u16>(head.values(), 0x0c));
+    DEBUG("0e: %04x", Bytes::ReadBE<u16>(head.values(), 0x0e));
+    DEBUG("10: %04x", Bytes::ReadBE<u16>(head.values(), 0x10));
+
+    if (byteCount < head.count()) {
+        return;
+    }
+
+    ETHCallback0 callback0;
+    ETHCallback1 callback1;
+
+    {
+        Lock<NoInterrupts> lock;
+        callback0 = m_callback0;
+        callback1 = m_callback1;
+    }
+
+    if (callback0 && callback1) {
+        u8 *buffer = static_cast<u8 *>(callback0(protocol, byteCount, 0));
+        if (buffer) {
+            memcpy(buffer, head.values(), head.count());
+            u8 *body = buffer + head.count();
+            u16 bodySize = byteCount - head.count();
+            if (readBufferMemory(body, bodySize)) {
+                callback1(buffer, byteCount);
             }
-
-            eirMask |= 1 << 6; // PKTIF
         }
+    }
 
-        if (eir & 1 << 4 /* LINKIF */) {
-            u16 phir;
-            if (readPHYRegister(PHIR, phir)) {
-                DEBUG("PHIR: %04x", phir);
-            }
+    if (!writeControlRegister(ERXRDPT, nextPacket)) {
+        return;
+    }
 
-            u16 phstat1, phstat2;
-            if (readPHYRegister(PHSTAT1, phstat1) && readPHYRegister(PHSTAT2, phstat2)) {
-                DEBUG("PHSTAT1: %04x", phstat1);
-                DEBUG("PHSTAT2: %04x", phstat2);
+    u8 econ2Mask = 0;
+    econ2Mask |= 1 << 6;
+    bitFieldSet(ECON2, econ2Mask);
+}
 
-                Lock<NoInterrupts> lock;
-                if (!(phstat1 & 1 << 2 /* LLSTAT */)) {
-                    m_latchingLinkStatus = false;
-                }
-                m_linkStatus = phstat2 & 1 << 10;
-            }
+void VirtualETH::handleLinkChange() {
+    u16 phir;
+    if (readPHYRegister(PHIR, phir)) {
+        DEBUG("PHIR: %04x", phir);
+    }
+
+    u16 phstat1, phstat2;
+    if (readPHYRegister(PHSTAT1, phstat1) && readPHYRegister(PHSTAT2, phstat2)) {
+        DEBUG("PHSTAT1: %04x", phstat1);
+        DEBUG("PHSTAT2: %04x", phstat2);
+
+        Lock<NoInterrupts> lock;
+        if (!(phstat1 & 1 << 2 /* LLSTAT */)) {
+            m_latchingLinkStatus = false;
         }
-
-        bitFieldClear(EIR, eirMask);
+        m_linkStatus = phstat2 & 1 << 10;
     }
 }
 

@@ -1,5 +1,6 @@
 #include <cube/EXI.hh>
 
+#include <cube/DCache.hh>
 #include <cube/Memory.hh>
 extern "C" {
 #include <dolphin/EXIBios.h>
@@ -58,6 +59,7 @@ bool EXI::Device::dmaRead(void *buffer, u32 size) {
             if (!EXISync(m_channel)) {
                 return false;
             }
+            DCache::Invalidate(buffer, alignedSize);
         }
 
         buffer = reinterpret_cast<u8 *>(buffer) + alignedSize;
