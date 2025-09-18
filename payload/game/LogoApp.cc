@@ -8,6 +8,7 @@
 #include "game/System.hh"
 
 #include <payload/CourseManager.hh>
+#include <payload/network/CubeNetwork.hh>
 #include <payload/online/Client.hh>
 #include <payload/online/CubeServerManager.hh>
 #include <portable/Log.hh>
@@ -17,9 +18,18 @@ void LogoApp::draw() {}
 void LogoApp::calc() {
     switch (m_state) {
     case 0:
-        ResMgr::LoadKeepData();
+        {
+            SOConfig &config = BBAMgr::Config();
+            config.flag = 1 << 0;
+            CubeNetwork::Instance().ensureStarted(config);
+        }
         break;
     case 1:
+        return;
+    case 2:
+        ResMgr::LoadKeepData();
+        break;
+    case 3:
         if (!ResMgr::IsFinishedLoadingArc(ResMgr::ArchiveID::MRAMLoc)) {
             return;
         }
@@ -27,14 +37,14 @@ void LogoApp::calc() {
         System::StartAudio();
         INFO("Loading bgm_0.aw...");
         break;
-    case 2:
+    case 4:
         if (!GameAudio::Main::Instance()->isWaveLoaded(5)) {
             return;
         }
         INFO("Loaded bgm_0.aw.");
         INFO("Loading se00_0.aw...");
         break;
-    case 3:
+    case 5:
         if (!GameAudio::Main::Instance()->isWaveLoaded(1)) {
             return;
         }

@@ -13,7 +13,6 @@ s32 ETHInit(s32 mode) {
     s_virtualETH = VirtualETH::Instance();
     s32 result = s_virtualETH->init(mode);
     if (result >= 0) {
-        while (true) {}
         return result;
     }
 
@@ -34,12 +33,16 @@ void ETHGetMACAddr(u8 *macaddr) {
 
 void ETHSetRecvCallback(ETHCallback0 callback0, ETHCallback1 callback1) {
     DEBUG("ETHSetRecvCallback %p %p", callback0, callback1);
+
+    if (s_virtualETH) {
+        s_virtualETH->setRecvCallback(callback0, callback1);
+        return;
+    }
+
     REPLACED(ETHSetRecvCallback)(callback0, callback1);
 }
 
 BOOL ETHGetLinkStateAsync(BOOL *status) {
-    DEBUG("ETHGetLinkStateAsync %p", status);
-
     if (s_virtualETH) {
         return s_virtualETH->getLinkStateAsync(status);
     }
@@ -49,6 +52,12 @@ BOOL ETHGetLinkStateAsync(BOOL *status) {
 
 void ETHSetProtoType(u16 *array, s32 num) {
     DEBUG("ETHSetProtoType %p %d", array, num);
+
+    if (s_virtualETH) {
+        s_virtualETH->setProtoType(array, num);
+        return;
+    }
+
     REPLACED(ETHSetProtoType)(array, num);
 }
 

@@ -83,6 +83,8 @@ BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
     return true;
 }
 
+void VirtualETH::setProtoType(u16 * /* array */, s32 /* num */) {}
+
 void VirtualETH::Init() {
     s_instance = new (MEM1Arena::Instance(), 0x4) VirtualETH;
 }
