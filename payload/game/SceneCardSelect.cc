@@ -2,6 +2,7 @@
 
 #include "game/AppMgr.hh"
 #include "game/GhostAction.hh"
+#include "game/Kart2DCommon.hh"
 #include "game/KartGamePad.hh"
 #include "game/MenuBackground.hh"
 #include "game/MenuTitleLine.hh"
@@ -40,6 +41,10 @@ SceneCardSelect::SceneCardSelect(JKRArchive *archive, JKRHeap *heap) : Scene(arc
 SceneCardSelect::~SceneCardSelect() {}
 
 void SceneCardSelect::init() {
+    Kart2DCommon *kart2DCommon = Kart2DCommon::Instance();
+    kart2DCommon->changeUnicodeTexture("Race 5 ghosts", 23, m_buttonScreens[0], "Name");
+    kart2DCommon->changeUnicodeTexture("Watch 5 ghosts", 23, m_buttonScreens[1], "Name");
+
     wait();
 }
 
