@@ -44,26 +44,10 @@ extern "C" {
 }
 
 s32 VirtualETH::init(s32 /* mode */) {
-    for (u32 i = 0; i < 4; i++) {
-        m_channel = i < 2 ? 2 - i : 0;
-        m_device = i == 2 ? 2 : 0;
-        INFO("%u %u", m_channel, m_device);
-        m_wasDetached = false;
-        if (m_channel != 2 && m_device == 0) {
-            if (!EXIAttach(m_channel, HandleEXT)) {
-                continue;
-            }
-        }
-
-        if (init()) {
-            return 1;
-        }
-
-        if (m_channel != 2 && m_device == 0) {
-            EXIDetach(m_channel);
-        }
-    }
-    return -1;
+    OSSendMessage(&m_queue, nullptr, OS_MESSAGE_BLOCK);
+    intptr_t result;
+    OSReceiveMessage(&m_initQueue, reinterpret_cast<void **>(&result), OS_MESSAGE_BLOCK);
+    return result;
 }
 
 void VirtualETH::getMACAddr(u8 macaddr[6]) {
@@ -93,39 +77,119 @@ VirtualETH *VirtualETH::Instance() {
     return s_instance;
 }
 
-VirtualETH::VirtualETH() {
+VirtualETH::VirtualETH() : m_callback0(nullptr), m_callback1(nullptr) {
     OSInitMessageQueue(&m_queue, m_messages.values(), m_messages.count());
+    OSInitMessageQueue(&m_initQueue, m_initMessages.values(), m_initMessages.count());
     void *param = this;
-    OSCreateThread(&m_thread, Run, param, m_stack.values() + m_stack.count(), m_stack.count(), 2,
+    OSCreateThread(&m_thread, Run, param, m_stack.values() + m_stack.count(), m_stack.count(), 5,
             0);
     OSResumeThread(&m_thread);
 }
 
 void *VirtualETH::run() {
-    DEBUG("run");
+    intptr_t initResult = -1;
     while (true) {
-        OSReceiveMessage(&m_queue, nullptr, OS_MESSAGE_BLOCK);
-        DEBUG("irq");
+        if (initResult < 0) {
+            OSReceiveMessage(&m_queue, nullptr, OS_MESSAGE_BLOCK);
+        }
 
-        u8 eir;
-        if (!readControlRegister(EIR, eir, false)) {
+        for (u32 i = 0; i < 4; i++) {
+            m_channel = i < 2 ? 2 - i : 0;
+            m_device = i == 2 ? 2 : 0;
+            INFO("%u %u", m_channel, m_device);
+            if (!attach()) {
+                continue;
+            }
+
+            if (init()) {
+                initResult = 1;
+                break;
+            }
+
+            detach();
+        }
+        OSSendMessage(&m_initQueue, reinterpret_cast<void *>(initResult), OS_MESSAGE_NOBLOCK);
+
+        if (initResult < 0) {
             continue;
         }
-        DEBUG("EIR: %02x", eir);
 
-        u8 eirMask = 0;
+        bool ok = true;
+        while (true) {
+            Action *action;
+            OSReceiveMessage(&m_queue, reinterpret_cast<void **>(&action), OS_MESSAGE_BLOCK);
 
-        if (eir & 1 << 6 /* PKTIF */) {
-            handlePacket();
-            eirMask |= 1 << 6; // PKTIF
+            if (!action) {
+                break;
+            }
+
+            if (!ok || !(this->*(*action))()) {
+                ok = false;
+            }
         }
 
-        if (eir & 1 << 4 /* LINKIF */) {
-            handleLinkChange();
-        }
-
-        bitFieldClear(EIR, eirMask);
+        detach();
+        while (OSReceiveMessage(&m_queue, nullptr, OS_MESSAGE_NOBLOCK)) {}
     }
+}
+
+bool VirtualETH::attach() {
+    Lock<NoInterrupts> lock;
+    m_wasDetached = false;
+    if (m_channel != 2 && m_device == 0) {
+        if (!EXIAttach(m_channel, HandleEXT)) {
+            return false;
+        }
+    }
+    if (m_channel == 2) {
+        OSSetInterruptHandler(25, HandleEXI);
+    } else {
+        EXISetExiCallback(m_channel + m_device, HandleEXI);
+    }
+    return true;
+}
+
+void VirtualETH::detach() {
+    Lock<NoInterrupts> lock;
+    if (!m_wasDetached) {
+        if (m_channel == 2) {
+            OSSetInterruptHandler(25, nullptr);
+        } else {
+            EXISetExiCallback(m_channel + m_device, nullptr);
+        }
+        if (m_channel != 2 && m_device == 0) {
+            EXIDetach(m_channel);
+        }
+        m_wasDetached = true;
+    }
+}
+
+bool VirtualETH::handleInterrupt() {
+    DEBUG("irq");
+
+    u8 eir;
+    if (!readControlRegister(EIR, eir, false)) {
+        return false;
+    }
+    DEBUG("EIR: %02x", eir);
+
+    u8 eirMask = 0;
+
+    if (eir & 1 << 6 /* PKTIF */) {
+        if (!handlePacket()) {
+            return false;
+        }
+        // eirMask |= 1 << 6; // PKTIF
+    }
+
+    if (eir & 1 << 4 /* LINKIF */) {
+        if (!handleLinkChange()) {
+            return false;
+        }
+    }
+
+    DEBUG("ok");
+    return bitFieldClear(EIR, eirMask);
 }
 
 bool VirtualETH::handlePacket() {
@@ -179,31 +243,35 @@ bool VirtualETH::handlePacket() {
     return bitFieldSet(ECON2, econ2Mask);
 }
 
-void VirtualETH::handleLinkChange() {
+bool VirtualETH::handleLinkChange() {
     u16 phir;
-    if (readPHYRegister(PHIR, phir)) {
-        DEBUG("PHIR: %04x", phir);
+    if (!readPHYRegister(PHIR, phir)) {
+        return false;
     }
+    DEBUG("PHIR: %04x", phir);
 
     u16 phstat1, phstat2;
-    if (readPHYRegister(PHSTAT1, phstat1) && readPHYRegister(PHSTAT2, phstat2)) {
-        DEBUG("PHSTAT1: %04x", phstat1);
-        DEBUG("PHSTAT2: %04x", phstat2);
-
-        Lock<NoInterrupts> lock;
-        if (!(phstat1 & 1 << 2 /* LLSTAT */)) {
-            m_latchingLinkStatus = false;
-        }
-        m_linkStatus = phstat2 & 1 << 10;
+    if (!readPHYRegister(PHSTAT1, phstat1) || !readPHYRegister(PHSTAT2, phstat2)) {
+        return false;
     }
+    DEBUG("PHSTAT1: %04x", phstat1);
+    DEBUG("PHSTAT2: %04x", phstat2);
+
+    Lock<NoInterrupts> lock;
+    if (!(phstat1 & 1 << 2 /* LLSTAT */)) {
+        m_latchingLinkStatus = false;
+    }
+    m_linkStatus = phstat2 & 1 << 10;
+    return true;
 }
 
 void VirtualETH::handleEXT() {
-    m_wasDetached = true;
+    detach();
 }
 
 void VirtualETH::handleEXI() {
-    OSSendMessage(&m_queue, nullptr, OS_MESSAGE_NOBLOCK);
+    static Action action = &VirtualETH::handleInterrupt;
+    OSSendMessage(&m_queue, reinterpret_cast<void *>(&action), OS_MESSAGE_NOBLOCK);
 }
 
 bool VirtualETH::init() {
@@ -325,11 +393,6 @@ bool VirtualETH::init() {
         return false;
     }
 
-    if (m_channel == 2) {
-        OSSetInterruptHandler(25, HandleEXI);
-    } else {
-        EXISetExiCallback(m_channel + m_device, HandleEXI);
-    }
     return true;
 }
 

@@ -68,11 +68,16 @@ private:
         PHLCON = 0x14,  // PHY Module LED Control
     };
 
+    typedef bool (VirtualETH::*Action)();
+
     VirtualETH();
 
     void *run();
+    bool attach();
+    void detach();
+    bool handleInterrupt();
     bool handlePacket();
-    void handleLinkChange();
+    bool handleLinkChange();
     void handleEXT();
     void handleEXI();
     bool init();
@@ -114,6 +119,8 @@ private:
     ETHCallback1 m_callback1;
     OSMessageQueue m_queue;
     Array<OSMessage, 1> m_messages;
+    OSMessageQueue m_initQueue;
+    Array<OSMessage, 1> m_initMessages;
     Array<u8, 4 * 1024> m_stack;
     OSThread m_thread;
 

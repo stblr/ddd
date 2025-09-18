@@ -7,6 +7,7 @@ extern "C" {
 #include <dolphin/OSMessage.h>
 #include <dolphin/OSThread.h>
 }
+#include <payload/Lock.hh>
 #include <payload/Mutex.hh>
 
 void EXISDStorage::Init() {
@@ -74,7 +75,7 @@ void *EXISDStorage::transfer() {
                 reinterpret_cast<void **>(const_cast<struct Transfer **>(&transfer)),
                 OS_MESSAGE_BLOCK);
         uintptr_t result = execute(transfer);
-        OSSendMessage(transfer->queue, reinterpret_cast<void **>(&result), OS_MESSAGE_BLOCK);
+        OSSendMessage(transfer->queue, reinterpret_cast<void *>(result), OS_MESSAGE_BLOCK);
     }
 }
 
@@ -94,7 +95,10 @@ void EXISDStorage::detach() {
     if (m_channel == 2) {
         return;
     }
-    EXIDetach(m_channel);
+    Lock<NoInterrupts> lock;
+    if (!m_wasDetached) {
+        EXIDetach(m_channel);
+    }
 }
 
 bool EXISDStorage::dispatch(struct Transfer *transfer) {
