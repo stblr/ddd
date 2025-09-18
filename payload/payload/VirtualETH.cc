@@ -93,6 +93,7 @@ void *VirtualETH::run() {
             OSReceiveMessage(&m_queue, nullptr, OS_MESSAGE_BLOCK);
         }
 
+        initResult = -1;
         for (u32 i = 0; i < 4; i++) {
             m_channel = i < 2 ? 2 - i : 0;
             m_device = i == 2 ? 2 : 0;
