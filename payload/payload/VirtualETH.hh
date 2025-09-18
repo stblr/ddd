@@ -71,7 +71,7 @@ private:
     VirtualETH();
 
     void *run();
-    void handlePacket();
+    bool handlePacket();
     void handleLinkChange();
     void handleEXT();
     void handleEXI();

@@ -126,46 +126,20 @@ void *VirtualETH::run() {
     }
 }
 
-void VirtualETH::handlePacket() {
-#define DUMP_REG2(reg) \
-    { \
-        u16 r; \
-        if (readControlRegister(reg, r, false)) { \
-            DEBUG(#reg ": %04x", r); \
-        } \
-    }
-
-    DUMP_REG2(ERDPT)   // 1530 -> 0 -> 1530
-    DUMP_REG2(EWRPT)   // 0 -> 4096 -> 0
-    DUMP_REG2(ETXST)   // 0 -> 4096 -> 0
-    DUMP_REG2(ETXND)   // 0 -> 8191 -> 1529
-    DUMP_REG2(ERXST)   // 1530 -> 0 -> 1530
-    DUMP_REG2(ERXND)   // 8191 -> 4095 -> 8191
-    DUMP_REG2(ERXRDPT) // 1530 -> 4095 -> 8191
-    DUMP_REG2(ERXWRPT) // 0
-
+bool VirtualETH::handlePacket() {
     alignas(0x20) Array<u8, 0x40> head;
     if (!readBufferMemory(head.values(), head.count())) {
-        return;
+        return false;
     }
 
     u16 nextPacket = Bytes::ReadLE<u16>(head.values(), 0x00);
     u16 byteCount = Bytes::ReadLE<u16>(head.values(), 0x02);
     u16 status = Bytes::ReadLE<u16>(head.values(), 0x04);
     u16 protocol = Bytes::ReadBE<u16>(head.values(), 0x12);
-    DEBUG("nextPacket: %04x", nextPacket);
-    DEBUG("byteCount: %04x", byteCount);
-    DEBUG("status: %04x", status);
-    DEBUG("protocol: %04x", protocol);
-    DEBUG("06: %04x", Bytes::ReadBE<u16>(head.values(), 0x06));
-    DEBUG("08: %04x", Bytes::ReadBE<u16>(head.values(), 0x08));
-    DEBUG("0a: %04x", Bytes::ReadBE<u16>(head.values(), 0x0a));
-    DEBUG("0c: %04x", Bytes::ReadBE<u16>(head.values(), 0x0c));
-    DEBUG("0e: %04x", Bytes::ReadBE<u16>(head.values(), 0x0e));
-    DEBUG("10: %04x", Bytes::ReadBE<u16>(head.values(), 0x10));
+    DEBUG("%04x %04x %04x %04x", nextPacket, byteCount, status, protocol);
 
     if (byteCount < head.count()) {
-        return;
+        return false;
     }
 
     ETHCallback0 callback0;
@@ -177,25 +151,30 @@ void VirtualETH::handlePacket() {
         callback1 = m_callback1;
     }
 
+    u8 *buffer = nullptr;
     if (callback0 && callback1) {
-        u8 *buffer = static_cast<u8 *>(callback0(protocol, byteCount, 0));
-        if (buffer) {
-            memcpy(buffer, head.values(), head.count());
-            u8 *body = buffer + head.count();
-            u16 bodySize = byteCount - head.count();
-            if (readBufferMemory(body, bodySize)) {
-                callback1(buffer, byteCount);
-            }
+        buffer = static_cast<u8 *>(callback0(protocol, byteCount, 0));
+    }
+    if (buffer) {
+        memcpy(buffer, head.values(), head.count());
+        u8 *body = buffer + head.count();
+        u16 bodySize = byteCount - head.count();
+        if (readBufferMemory(body, bodySize)) {
+            callback1(buffer, byteCount);
+        }
+    } else {
+        if (!writeControlRegister(ERDPT, nextPacket)) {
+            return false;
         }
     }
 
     if (!writeControlRegister(ERXRDPT, nextPacket)) {
-        return;
+        return false;
     }
 
     u8 econ2Mask = 0;
     econ2Mask |= 1 << 6;
-    bitFieldSet(ECON2, econ2Mask);
+    return bitFieldSet(ECON2, econ2Mask);
 }
 
 void VirtualETH::handleLinkChange() {
