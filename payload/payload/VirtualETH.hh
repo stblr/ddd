@@ -68,6 +68,17 @@ private:
         PHLCON = 0x14,  // PHY Module LED Control
     };
 
+    struct RecvContext {
+        ETHCallback0 callback0;
+        ETHCallback1 callback1;
+    };
+
+    struct SendContext {
+        void *addr;
+        s32 length;
+        ETHCallback2 callback2;
+    };
+
     VirtualETH();
 
     void *run();
@@ -76,6 +87,8 @@ private:
     bool handleInterrupt();
     bool handlePacket();
     bool handleLinkChange();
+    bool handleTransmit();
+    bool trySend();
     void handleEXT();
     void handleEXI();
     bool init();
@@ -113,8 +126,8 @@ private:
     bool m_latchingLinkStatus;
     bool m_linkStatus;
     u8 m_macAddr[6];
-    ETHCallback0 m_callback0;
-    ETHCallback1 m_callback1;
+    RecvContext m_recvContext;
+    SendContext m_sendContext;
     OSMessageQueue m_queue;
     Array<OSMessage, 1> m_messages;
     OSMessageQueue m_initQueue;

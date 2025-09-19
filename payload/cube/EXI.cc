@@ -72,6 +72,7 @@ bool EXI::Device::dmaWrite(const void *buffer, u32 size) {
     if (Memory::IsMEM1(buffer) && Memory::IsAligned(buffer, 0x20)) {
         u32 alignedSize = AlignDown<u32>(size, 0x20);
         if (alignedSize != 0) {
+            DCache::Flush(buffer, alignedSize);
             if (!EXIDma(m_channel, const_cast<void *>(buffer), alignedSize, EXI_WRITE, nullptr)) {
                 return false;
             }

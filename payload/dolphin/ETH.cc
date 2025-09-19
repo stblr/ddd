@@ -63,6 +63,12 @@ void ETHSetProtoType(u16 *array, s32 num) {
 
 void ETHSendAsync(void *addr, s32 length, ETHCallback2 callback2) {
     DEBUG("ETHSendAsync %p %d %p", addr, length, callback2);
+
+    if (s_virtualETH) {
+        s_virtualETH->sendAsync(addr, length, callback2);
+        return;
+    }
+
     REPLACED(ETHSendAsync)(addr, length, callback2);
 }
 

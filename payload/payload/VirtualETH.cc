@@ -57,8 +57,7 @@ void VirtualETH::getMACAddr(u8 macaddr[6]) {
 
 void VirtualETH::setRecvCallback(ETHCallback0 callback0, ETHCallback1 callback1) {
     Lock<NoInterrupts> lock;
-    m_callback0 = callback0;
-    m_callback1 = callback1;
+    m_recvContext = (RecvContext){callback0, callback1};
 }
 
 BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
@@ -69,6 +68,13 @@ BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
 }
 
 void VirtualETH::setProtoType(u16 * /* array */, s32 /* num */) {}
+
+void VirtualETH::sendAsync(void *addr, s32 length, ETHCallback2 callback2) {
+    Lock<NoInterrupts> lock;
+    m_sendContext = (SendContext){addr, length, callback2};
+    uintptr_t message = true;
+    OSSendMessage(&m_queue, reinterpret_cast<void *>(message), OS_MESSAGE_NOBLOCK);
+}
 
 void VirtualETH::addMulticastAddress(const u8 /* macaddr */[6]) {}
 
@@ -82,7 +88,8 @@ VirtualETH *VirtualETH::Instance() {
     return s_instance;
 }
 
-VirtualETH::VirtualETH() : m_callback0(nullptr), m_callback1(nullptr) {
+VirtualETH::VirtualETH() {
+    m_recvContext = (RecvContext){nullptr, nullptr};
     OSInitMessageQueue(&m_queue, m_messages.values(), m_messages.count());
     OSInitMessageQueue(&m_initQueue, m_initMessages.values(), m_initMessages.count());
     void *param = this;
@@ -129,6 +136,7 @@ void *VirtualETH::run() {
             }
 
             ok = ok && handleInterrupt();
+            ok = ok && trySend();
         }
 
         detach();
@@ -168,8 +176,6 @@ void VirtualETH::detach() {
 }
 
 bool VirtualETH::handleInterrupt() {
-    DEBUG("irq");
-
     u8 eieMask = 1 << 7; // INTIE
     if (!bitFieldClear(EIE, eieMask)) {
         return false;
@@ -181,13 +187,10 @@ bool VirtualETH::handleInterrupt() {
     }
     DEBUG("EIR: %02x", eir);
 
-    u8 eirMask = 0;
-
     if (eir & 1 << 6 /* PKTIF */) {
         if (!handlePacket()) {
             return false;
         }
-        // eirMask |= 1 << 6; // PKTIF
     }
 
     if (eir & 1 << 4 /* LINKIF */) {
@@ -196,14 +199,16 @@ bool VirtualETH::handleInterrupt() {
         }
     }
 
+    if (eir & 1 << 3 /* TXIF */) {
+        if (!handleTransmit()) {
+            return false;
+        }
+    }
+
     if (!readControlRegister(EIR, eir, false)) {
         return false;
     }
     DEBUG("-> EIR: %02x", eir);
-
-    if (!bitFieldClear(EIR, eirMask)) {
-        return false;
-    }
 
     return bitFieldSet(EIE, eieMask);
 }
@@ -229,8 +234,8 @@ bool VirtualETH::handlePacket() {
 
     {
         Lock<NoInterrupts> lock;
-        callback0 = m_callback0;
-        callback1 = m_callback1;
+        callback0 = m_recvContext.callback0;
+        callback1 = m_recvContext.callback1;
     }
 
     u8 *buffer = nullptr;
@@ -279,6 +284,59 @@ bool VirtualETH::handleLinkChange() {
     }
     m_linkStatus = phstat2 & 1 << 10;
     return true;
+}
+
+bool VirtualETH::handleTransmit() {
+    ETHCallback2 callback2;
+
+    {
+        Lock<NoInterrupts> lock;
+        callback2 = m_sendContext.callback2;
+        m_sendContext.callback2 = nullptr;
+    }
+
+    if (callback2) {
+        callback2(0);
+    }
+
+    u8 eirMask = 1 << 3; // TXIF
+    return bitFieldClear(EIR, eirMask);
+}
+
+bool VirtualETH::trySend() {
+    void *addr;
+    s32 length;
+
+    {
+        Lock<NoInterrupts> lock;
+        addr = m_sendContext.addr;
+        length = m_sendContext.length;
+        m_sendContext.addr = nullptr;
+        m_sendContext.length = 0;
+    }
+
+    if (!addr || !length) {
+        return true;
+    }
+
+    bool result = true;
+
+    u16 ewrpt = 0;
+    result = result && writeControlRegister(EWRPT, ewrpt);
+
+    u8 control = 0;
+    result = result && writeBufferMemory(&control, sizeof(control));
+
+    result = result && writeBufferMemory(addr, length);
+
+    u16 etxnd = length;
+    result = result && writeControlRegister(ETXND, etxnd);
+
+    u8 econ1Mask = 0;
+    econ1Mask |= 1 << 3; // TXRTS
+    result = result && bitFieldSet(ECON1, econ1Mask);
+
+    return result;
 }
 
 void VirtualETH::handleEXT() {
