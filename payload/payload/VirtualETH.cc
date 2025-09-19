@@ -166,6 +166,11 @@ void VirtualETH::detach() {
 bool VirtualETH::handleInterrupt() {
     DEBUG("irq");
 
+    u8 eieMask = 1 << 7; // INTIE
+    if (!bitFieldClear(EIE, eieMask)) {
+        return false;
+    }
+
     u8 eir;
     if (!readControlRegister(EIR, eir, false)) {
         return false;
@@ -187,8 +192,16 @@ bool VirtualETH::handleInterrupt() {
         }
     }
 
-    DEBUG("ok");
-    return bitFieldClear(EIR, eirMask);
+    if (!readControlRegister(EIR, eir, false)) {
+        return false;
+    }
+    DEBUG("-> EIR: %02x", eir);
+
+    if (!bitFieldClear(EIR, eirMask)) {
+        return false;
+    }
+
+    return bitFieldSet(EIE, eieMask);
 }
 
 bool VirtualETH::handlePacket() {
@@ -223,7 +236,7 @@ bool VirtualETH::handlePacket() {
     if (buffer) {
         memcpy(buffer, head.values(), head.count());
         u8 *body = buffer + head.count();
-        u16 bodySize = byteCount - head.count();
+        u16 bodySize = byteCount - (head.count() - 0x06);
         if (readBufferMemory(body, bodySize)) {
             callback1(buffer, byteCount);
         }
