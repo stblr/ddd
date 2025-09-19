@@ -68,8 +68,6 @@ private:
         PHLCON = 0x14,  // PHY Module LED Control
     };
 
-    typedef bool (VirtualETH::*Action)();
-
     VirtualETH();
 
     void *run();

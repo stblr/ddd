@@ -44,7 +44,8 @@ extern "C" {
 }
 
 s32 VirtualETH::init(s32 /* mode */) {
-    OSSendMessage(&m_queue, nullptr, OS_MESSAGE_BLOCK);
+    uintptr_t msg = false;
+    OSSendMessage(&m_queue, reinterpret_cast<void *>(msg), OS_MESSAGE_BLOCK);
     intptr_t result;
     OSReceiveMessage(&m_initQueue, reinterpret_cast<void **>(&result), OS_MESSAGE_BLOCK);
     return result;
@@ -115,18 +116,15 @@ void *VirtualETH::run() {
             continue;
         }
 
-        bool ok = true;
-        while (true) {
-            Action *action;
-            OSReceiveMessage(&m_queue, reinterpret_cast<void **>(&action), OS_MESSAGE_BLOCK);
+        for (bool ok = true;;) {
+            uintptr_t msg;
+            OSReceiveMessage(&m_queue, reinterpret_cast<void **>(&msg), OS_MESSAGE_BLOCK);
 
-            if (!action) {
+            if (!msg) {
                 break;
             }
 
-            if (!ok || !(this->*(*action))()) {
-                ok = false;
-            }
+            ok = ok && handleInterrupt();
         }
 
         detach();
@@ -271,8 +269,8 @@ void VirtualETH::handleEXT() {
 }
 
 void VirtualETH::handleEXI() {
-    static Action action = &VirtualETH::handleInterrupt;
-    OSSendMessage(&m_queue, reinterpret_cast<void *>(&action), OS_MESSAGE_NOBLOCK);
+    uintptr_t message = true;
+    OSSendMessage(&m_queue, reinterpret_cast<void *>(message), OS_MESSAGE_NOBLOCK);
 }
 
 bool VirtualETH::init() {
