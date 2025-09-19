@@ -70,6 +70,10 @@ BOOL VirtualETH::getLinkStateAsync(BOOL *status) {
 
 void VirtualETH::setProtoType(u16 * /* array */, s32 /* num */) {}
 
+void VirtualETH::addMulticastAddress(const u8 /* macaddr */[6]) {}
+
+void VirtualETH::clearMulticastAddresses() {}
+
 void VirtualETH::Init() {
     s_instance = new (MEM1Arena::Instance(), 0x4) VirtualETH;
 }

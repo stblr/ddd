@@ -66,12 +66,24 @@ void ETHSendAsync(void *addr, s32 length, ETHCallback2 callback2) {
     REPLACED(ETHSendAsync)(addr, length, callback2);
 }
 
-void ETHAddMulticastAddress(const u8 *macaddr) {
+void ETHAddMulticastAddress(const u8 macaddr[6]) {
     DEBUG("ETHAddMulticastAddress %p", macaddr);
+
+    if (s_virtualETH) {
+        s_virtualETH->addMulticastAddress(macaddr);
+        return;
+    }
+
     REPLACED(ETHAddMulticastAddress)(macaddr);
 }
 
 void ETHClearMulticastAddresses() {
     DEBUG("ETHClearMulticastAddresses");
+
+    if (s_virtualETH) {
+        s_virtualETH->clearMulticastAddresses();
+        return;
+    }
+
     REPLACED(ETHClearMulticastAddresses)();
 }
