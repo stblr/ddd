@@ -7,7 +7,11 @@
 #include "game/SequenceApp.hh"
 #include "game/System.hh"
 
+extern "C" {
+#include <dolphin/IPRoute.h>
+}
 #include <payload/CourseManager.hh>
+#include <payload/network/CubeDNS.hh>
 #include <payload/network/CubeNetwork.hh>
 #include <payload/online/Client.hh>
 #include <payload/online/CubeServerManager.hh>
@@ -25,6 +29,16 @@ void LogoApp::calc() {
         }
         break;
     case 1:
+        {
+            static u32 address = 0;
+            s32 error = IPGetConfigError(nullptr);
+            if (error) {
+                DEBUG("error: %d", error);
+            }
+            if (CubeDNS::Instance()->resolve("google.com", address)) {
+                DEBUG("address: %08x", address);
+            }
+        }
         return;
     case 2:
         ResMgr::LoadKeepData();

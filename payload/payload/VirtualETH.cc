@@ -223,7 +223,25 @@ bool VirtualETH::handlePacket() {
     u16 byteCount = Bytes::ReadLE<u16>(head.values(), 0x02);
     u16 status = Bytes::ReadLE<u16>(head.values(), 0x04);
     u16 protocol = Bytes::ReadBE<u16>(head.values(), 0x12);
-    DEBUG("%04x %04x %04x %04x", nextPacket, byteCount, status, protocol);
+    u8 protocol2 = head[0x1d];
+    u16 erdpt;
+    if (!readControlRegister(ERDPT, erdpt, false)) {
+        return false;
+    }
+    u16 erxrdpt;
+    if (!readControlRegister(ERXRDPT, erxrdpt, false)) {
+        return false;
+    }
+    u16 erxwrpt;
+    if (!readControlRegister(ERXWRPT, erxwrpt, false)) {
+        return false;
+    }
+    u16 erxst;
+    if (!readControlRegister(ERXST, erxst, false)) {
+        return false;
+    }
+    DEBUG("%04x %04x %04x %04x %04x %04x %04x %04x %02x", nextPacket, byteCount, status, protocol,
+            erdpt, erxrdpt, erxwrpt, erxst, protocol2);
 
     if (byteCount < head.count()) {
         return false;
@@ -243,9 +261,11 @@ bool VirtualETH::handlePacket() {
         buffer = static_cast<u8 *>(callback0(protocol, byteCount, 0));
     }
     if (buffer) {
-        memcpy(buffer, head.values(), head.count());
-        u8 *body = buffer + head.count();
-        u16 bodySize = byteCount - (head.count() - 0x06);
+        u32 headerSize = 0x06;
+        u32 headSize = head.count() - headerSize;
+        memcpy(buffer, head.values() + headerSize, headSize);
+        u8 *body = buffer + headSize;
+        u16 bodySize = byteCount - headSize;
         if (readBufferMemory(body, bodySize)) {
             callback1(buffer, byteCount);
         }
@@ -296,6 +316,7 @@ bool VirtualETH::handleTransmit() {
     }
 
     if (callback2) {
+        DEBUG("callback");
         callback2(0);
     }
 
@@ -321,7 +342,7 @@ bool VirtualETH::trySend() {
 
     bool result = true;
 
-    u16 ewrpt = 0;
+    u16 ewrpt = TXStart;
     result = result && writeControlRegister(EWRPT, ewrpt);
 
     u8 control = 0;
@@ -329,7 +350,7 @@ bool VirtualETH::trySend() {
 
     result = result && writeBufferMemory(addr, length);
 
-    u16 etxnd = length;
+    u16 etxnd = TXStart + length;
     result = result && writeControlRegister(ETXND, etxnd);
 
     u8 econ1Mask = 0;
@@ -413,32 +434,10 @@ bool VirtualETH::init() {
         return false;
     }
 
-#define DUMP_REG(reg) \
-    { \
-        u16 r; \
-        if (!readControlRegister(reg, r, false)) { \
-            return false; \
-        } \
-        DEBUG(#reg ": %04x", r); \
-    }
-
-    DUMP_REG(ERDPT)   // 1530 -> 0 -> 1530
-    DUMP_REG(EWRPT)   // 0 -> 4096 -> 0
-    DUMP_REG(ETXST)   // 0 -> 4096 -> 0
-    DUMP_REG(ETXND)   // 0 -> 8191 -> 1529
-    DUMP_REG(ERXST)   // 1530 -> 0 -> 1530
-    DUMP_REG(ERXND)   // 8191 -> 4095 -> 8191
-    DUMP_REG(ERXRDPT) // 1530 -> 4095 -> 8191
-    DUMP_REG(ERXWRPT) // 0
-
-    u16 erxnd = 8191;
-    if (!writeControlRegister(ERXND, erxnd)) {
+    if (!initBuffer()) {
+        DEBUG("Failed to initialize buffer");
         return false;
     }
-
-    DUMP_REG(ERXST)   // 1530 -> 0 -> 1530
-    DUMP_REG(ERXND)   // 1530 -> 0 -> 1530
-    DUMP_REG(ERXWRPT) // 0
 
     if (!initFilters()) {
         DEBUG("Failed to initialize filters");
@@ -466,6 +465,57 @@ bool VirtualETH::init() {
         DEBUG("Failed to initialize Ethernet");
         return false;
     }
+
+    return true;
+}
+
+bool VirtualETH::initBuffer() {
+#define DUMP_REG(reg) \
+    { \
+        u16 r; \
+        if (!readControlRegister(reg, r, false)) { \
+            return false; \
+        } \
+        DEBUG(#reg ": %04x", r); \
+    }
+
+    DUMP_REG(ERDPT)   // 1530 -> 0 -> 0
+    DUMP_REG(EWRPT)   // 0 -> 4096 -> 6662
+    DUMP_REG(ETXST)   // 0 -> 4096 -> 0
+    DUMP_REG(ETXND)   // 0 -> 8191 -> 1529
+    DUMP_REG(ERXST)   // 1530 -> 0 -> 0
+    DUMP_REG(ERXND)   // 8191 -> 4095 -> 6661
+    DUMP_REG(ERXRDPT) // 1530 -> 4095 -> 6661
+    DUMP_REG(ERXWRPT) // 0
+
+    bool result = true;
+
+    u16 erdpt = RXStart;
+    result = result && writeControlRegister(ERDPT, erdpt);
+
+    u16 ewrpt = TXStart;
+    result = result && writeControlRegister(EWRPT, ewrpt);
+
+    u16 etxst = TXStart;
+    result = result && writeControlRegister(ETXST, etxst);
+
+    u16 erxst = RXStart;
+    result = result && writeControlRegister(ERXST, erxst);
+
+    u16 erxnd = RXEnd;
+    result = result && writeControlRegister(ERXND, erxnd);
+
+    u16 erxrdpt = RXEnd;
+    result = result && writeControlRegister(ERXRDPT, erxrdpt);
+
+    DUMP_REG(ERDPT)   // 1530 -> 0 -> 0
+    DUMP_REG(EWRPT)   // 0 -> 4096 -> 6662
+    DUMP_REG(ETXST)   // 0 -> 4096 -> 0
+    DUMP_REG(ETXND)   // 0 -> 8191 -> 1529
+    DUMP_REG(ERXST)   // 1530 -> 0 -> 0
+    DUMP_REG(ERXND)   // 8191 -> 4095 -> 6661
+    DUMP_REG(ERXRDPT) // 1530 -> 4095 -> 6661
+    DUMP_REG(ERXWRPT) // 0
 
     return true;
 }

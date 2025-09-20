@@ -24,6 +24,14 @@ public:
 
 private:
     enum {
+        BufferSize = 8192,
+        TXStart = BufferSize - 1530,
+        TXEnd = BufferSize - 1,
+        RXStart = 0, // Must be 0 per erratum 5
+        RXEnd = TXStart - 1,
+    };
+
+    enum {
         ERDPT = 0x00,    // Read Pointer
         EWRPT = 0x02,    // Write Pointer
         ETXST = 0x04,    // TX Start
@@ -92,6 +100,7 @@ private:
     void handleEXT();
     void handleEXI();
     bool init();
+    bool initBuffer();
     bool initFilters();
     bool initMAC();
     bool initMACAddr();
