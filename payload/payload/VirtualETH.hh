@@ -96,6 +96,7 @@ private:
     bool handlePacket();
     bool handleLinkChange();
     bool handleTransmit();
+    bool handleTransmitError();
     bool trySend();
     void handleEXT();
     void handleEXI();

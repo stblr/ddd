@@ -176,41 +176,30 @@ void VirtualETH::detach() {
 }
 
 bool VirtualETH::handleInterrupt() {
+    bool result = true;
+
     u8 eieMask = 1 << 7; // INTIE
-    if (!bitFieldClear(EIE, eieMask)) {
-        return false;
-    }
+    result = result && bitFieldClear(EIE, eieMask);
 
     u8 eir;
-    if (!readControlRegister(EIR, eir, false)) {
-        return false;
-    }
-    DEBUG("EIR: %02x", eir);
-
-    if (eir & 1 << 6 /* PKTIF */) {
-        if (!handlePacket()) {
-            return false;
-        }
+    result = result && readControlRegister(EIR, eir, false);
+    if (result) {
+        DEBUG("EIR: %02x", eir);
     }
 
-    if (eir & 1 << 4 /* LINKIF */) {
-        if (!handleLinkChange()) {
-            return false;
-        }
+    result = result && (!(eir & 1 << 6 /* PKTIF */) || handlePacket());
+    result = result && (!(eir & 1 << 4 /* LINKIF */) || handleLinkChange());
+    result = result && (!(eir & 1 << 3 /* TXIF */) || handleTransmit());
+    result = result && (!(eir & 1 << 1 /* TXERIF */) || handleTransmitError());
+
+    result = result && readControlRegister(EIR, eir, false);
+    if (result) {
+        DEBUG("-> EIR: %02x", eir);
     }
 
-    if (eir & 1 << 3 /* TXIF */) {
-        if (!handleTransmit()) {
-            return false;
-        }
-    }
+    result = result && bitFieldSet(EIE, eieMask);
 
-    if (!readControlRegister(EIR, eir, false)) {
-        return false;
-    }
-    DEBUG("-> EIR: %02x", eir);
-
-    return bitFieldSet(EIE, eieMask);
+    return result;
 }
 
 bool VirtualETH::handlePacket() {
@@ -322,6 +311,12 @@ bool VirtualETH::handleTransmit() {
 
     u8 eirMask = 1 << 3; // TXIF
     return bitFieldClear(EIR, eirMask);
+}
+
+bool VirtualETH::handleTransmitError() {
+    u8 econ1Mask = 0;
+    econ1Mask |= 1 << 7; // TXRST
+    return bitFieldSet(ECON1, econ1Mask) && bitFieldClear(ECON1, econ1Mask);
 }
 
 bool VirtualETH::trySend() {
@@ -619,6 +614,8 @@ bool VirtualETH::initEthernet() {
     eieMask |= 1 << 7; // INTIE
     eieMask |= 1 << 6; // PKTIE
     eieMask |= 1 << 4; // LINKIE
+    eieMask |= 1 << 3; // TXIE
+    eieMask |= 1 << 1; // TXERIE
     result = result && bitFieldSet(EIE, eieMask);
 
     u8 econ1Mask = 0;
