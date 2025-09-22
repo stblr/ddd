@@ -53,13 +53,13 @@ bool EXI::Device::dmaRead(void *buffer, u32 size) {
     if (Memory::IsMEM1(buffer) && Memory::IsAligned(buffer, 0x20)) {
         u32 alignedSize = AlignDown<u32>(size, 0x20);
         if (alignedSize != 0) {
+            DCache::Invalidate(buffer, alignedSize);
             if (!EXIDma(m_channel, buffer, alignedSize, EXI_READ, nullptr)) {
                 return false;
             }
             if (!EXISync(m_channel)) {
                 return false;
             }
-            DCache::Invalidate(buffer, alignedSize);
         }
 
         buffer = reinterpret_cast<u8 *>(buffer) + alignedSize;

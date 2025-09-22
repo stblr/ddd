@@ -22,14 +22,14 @@ void LogoApp::draw() {}
 void LogoApp::calc() {
     switch (m_state) {
     case 0:
-        {
+        /*{
             SOConfig &config = BBAMgr::Config();
             config.flag = 1 << 0;
             CubeNetwork::Instance().ensureStarted(config);
-        }
+        }*/
         break;
     case 1:
-        {
+        /*{
             static u32 address = 0;
             s32 error = IPGetConfigError(nullptr);
             if (error) {
@@ -39,7 +39,8 @@ void LogoApp::calc() {
                 DEBUG("address: %08x", address);
             }
         }
-        return;
+        return;*/
+        break;
     case 2:
         ResMgr::LoadKeepData();
         break;

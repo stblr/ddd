@@ -120,6 +120,7 @@ void *VirtualETH::run() {
             }
 
             detach();
+            while (OSReceiveMessage(&m_queue, nullptr, OS_MESSAGE_NOBLOCK)) {}
         }
         OSSendMessage(&m_initQueue, reinterpret_cast<void *>(initResult), OS_MESSAGE_NOBLOCK);
 
@@ -183,6 +184,15 @@ bool VirtualETH::handleInterrupt() {
 
     u8 eir;
     result = result && readControlRegister(EIR, eir, false);
+
+    u8 epktcnt;
+    result = result && readControlRegister(EPKTCNT, epktcnt, false);
+    if (result) {
+        // PKTIF is unreliable per erratum 6
+        eir &= ~(1 << 6);      // PKTIF
+        eir |= !!epktcnt << 6; // PKTIF
+    }
+
     if (result) {
         DEBUG("EIR: %02x", eir);
     }
@@ -194,7 +204,10 @@ bool VirtualETH::handleInterrupt() {
 
     result = result && readControlRegister(EIR, eir, false);
     if (result) {
-        DEBUG("-> EIR: %02x", eir);
+        u8 epktcnt;
+        if (readControlRegister(EPKTCNT, epktcnt, false)) {
+            DEBUG("-> EIR: %02x, EPKTCNT: %02x", eir, epktcnt);
+        }
     }
 
     result = result && bitFieldSet(EIE, eieMask);
@@ -203,6 +216,11 @@ bool VirtualETH::handleInterrupt() {
 }
 
 bool VirtualETH::handlePacket() {
+    u8 epktcnt;
+    if (!readControlRegister(EPKTCNT, epktcnt, false)) {
+        return false;
+    }
+
     alignas(0x20) Array<u8, 0x40> head;
     if (!readBufferMemory(head.values(), head.count())) {
         return false;
@@ -225,12 +243,20 @@ bool VirtualETH::handlePacket() {
     if (!readControlRegister(ERXWRPT, erxwrpt, false)) {
         return false;
     }
-    u16 erxst;
-    if (!readControlRegister(ERXST, erxst, false)) {
+    u16 etxst;
+    if (!readControlRegister(ETXST, etxst, false)) {
         return false;
     }
-    DEBUG("%04x %04x %04x %04x %04x %04x %04x %04x %02x", nextPacket, byteCount, status, protocol,
-            erdpt, erxrdpt, erxwrpt, erxst, protocol2);
+    u16 etxnd;
+    if (!readControlRegister(ETXND, etxnd, false)) {
+        return false;
+    }
+    u16 ewrpt;
+    if (!readControlRegister(EWRPT, ewrpt, false)) {
+        return false;
+    }
+    DEBUG("%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %02x %02x", nextPacket, byteCount,
+            status, protocol, erdpt, erxrdpt, erxwrpt, etxst, etxnd, ewrpt, epktcnt, protocol2);
 
     if (byteCount < head.count()) {
         return false;
@@ -258,18 +284,21 @@ bool VirtualETH::handlePacket() {
         if (readBufferMemory(body, bodySize)) {
             callback1(buffer, byteCount);
         }
-    } else {
-        if (!writeControlRegister(ERDPT, nextPacket)) {
-            return false;
-        }
     }
 
-    if (!writeControlRegister(ERXRDPT, nextPacket)) {
+    erdpt = nextPacket;
+    if (!writeControlRegister(ERDPT, nextPacket)) {
+        return false;
+    }
+
+    // Must be odd per erratum 14
+    erxrdpt = nextPacket == RXStart ? RXEnd : nextPacket - 1;
+    if (!writeControlRegister(ERXRDPT, erxrdpt)) {
         return false;
     }
 
     u8 econ2Mask = 0;
-    econ2Mask |= 1 << 6;
+    econ2Mask |= 1 << 6; // PKTDEC
     return bitFieldSet(ECON2, econ2Mask);
 }
 
@@ -305,7 +334,6 @@ bool VirtualETH::handleTransmit() {
     }
 
     if (callback2) {
-        DEBUG("callback");
         callback2(0);
     }
 
@@ -369,13 +397,6 @@ bool VirtualETH::init() {
     m_latchingLinkStatus = false;
     m_linkStatus = false;
 
-    // TODO is this useful?
-    u32 id;
-    if (!EXI::GetID(m_channel, 0, id)) {
-        return false;
-    }
-    DEBUG("%08x", id);
-
     reset();
 
     {
@@ -387,6 +408,7 @@ bool VirtualETH::init() {
         if (!device.immWrite(&cmd, sizeof(cmd))) {
             return false;
         }
+        u32 id;
         if (!device.immRead(&id, sizeof(id))) {
             return false;
         }
@@ -473,6 +495,8 @@ bool VirtualETH::initBuffer() {
         } \
         DEBUG(#reg ": %04x", r); \
     }
+#undef DUMP_REG
+#define DUMP_REG(reg)
 
     DUMP_REG(ERDPT)   // 1530 -> 0 -> 0
     DUMP_REG(EWRPT)   // 0 -> 4096 -> 6662

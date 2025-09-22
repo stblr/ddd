@@ -46,6 +46,7 @@ private:
         ECON2 = 0x1e,    // Ethernet Control 2
         ECON1 = 0x1f,    // Ethernet Control 1
         ERXFCON = 0x38,  // Ethernet Receive Filter Control
+        EPKTCNT = 0x39,  // Ethernet Packet Count
         MACON1 = 0x40,   // MAC Control 1
         MACON3 = 0x42,   // MAC Control 3
         MACON4 = 0x43,   // MAC Control 4
