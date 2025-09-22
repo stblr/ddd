@@ -109,6 +109,7 @@ private:
     bool initPHY();
     bool initEthernet();
 
+    bool readID(u32 &id);
     void reset();
     bool bitFieldSet(u8 address, u8 bits);
     bool bitFieldClear(u8 address, u8 bits);

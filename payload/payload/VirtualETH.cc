@@ -109,7 +109,6 @@ void *VirtualETH::run() {
         for (u32 i = 0; i < 4; i++) {
             m_channel = i < 2 ? 2 - i : 0;
             m_device = i == 2 ? 2 : 0;
-            INFO("%u %u", m_channel, m_device);
             if (!attach()) {
                 continue;
             }
@@ -193,22 +192,10 @@ bool VirtualETH::handleInterrupt() {
         eir |= !!epktcnt << 6; // PKTIF
     }
 
-    if (result) {
-        DEBUG("EIR: %02x", eir);
-    }
-
     result = result && (!(eir & 1 << 6 /* PKTIF */) || handlePacket());
     result = result && (!(eir & 1 << 4 /* LINKIF */) || handleLinkChange());
     result = result && (!(eir & 1 << 3 /* TXIF */) || handleTransmit());
     result = result && (!(eir & 1 << 1 /* TXERIF */) || handleTransmitError());
-
-    result = result && readControlRegister(EIR, eir, false);
-    if (result) {
-        u8 epktcnt;
-        if (readControlRegister(EPKTCNT, epktcnt, false)) {
-            DEBUG("-> EIR: %02x, EPKTCNT: %02x", eir, epktcnt);
-        }
-    }
 
     result = result && bitFieldSet(EIE, eieMask);
 
@@ -228,35 +215,11 @@ bool VirtualETH::handlePacket() {
 
     u16 nextPacket = Bytes::ReadLE<u16>(head.values(), 0x00);
     u16 byteCount = Bytes::ReadLE<u16>(head.values(), 0x02);
-    u16 status = Bytes::ReadLE<u16>(head.values(), 0x04);
     u16 protocol = Bytes::ReadBE<u16>(head.values(), 0x12);
-    u8 protocol2 = head[0x1d];
-    u16 erdpt;
-    if (!readControlRegister(ERDPT, erdpt, false)) {
-        return false;
-    }
-    u16 erxrdpt;
-    if (!readControlRegister(ERXRDPT, erxrdpt, false)) {
-        return false;
-    }
     u16 erxwrpt;
     if (!readControlRegister(ERXWRPT, erxwrpt, false)) {
         return false;
     }
-    u16 etxst;
-    if (!readControlRegister(ETXST, etxst, false)) {
-        return false;
-    }
-    u16 etxnd;
-    if (!readControlRegister(ETXND, etxnd, false)) {
-        return false;
-    }
-    u16 ewrpt;
-    if (!readControlRegister(EWRPT, ewrpt, false)) {
-        return false;
-    }
-    DEBUG("%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %02x %02x", nextPacket, byteCount,
-            status, protocol, erdpt, erxrdpt, erxwrpt, etxst, etxnd, ewrpt, epktcnt, protocol2);
 
     if (byteCount < head.count()) {
         return false;
@@ -286,13 +249,13 @@ bool VirtualETH::handlePacket() {
         }
     }
 
-    erdpt = nextPacket;
-    if (!writeControlRegister(ERDPT, nextPacket)) {
+    u16 erdpt = nextPacket;
+    if (!writeControlRegister(ERDPT, erdpt)) {
         return false;
     }
 
     // Must be odd per erratum 14
-    erxrdpt = nextPacket == RXStart ? RXEnd : nextPacket - 1;
+    u16 erxrdpt = nextPacket == RXStart ? RXEnd : nextPacket - 1;
     if (!writeControlRegister(ERXRDPT, erxrdpt)) {
         return false;
     }
@@ -307,14 +270,11 @@ bool VirtualETH::handleLinkChange() {
     if (!readPHYRegister(PHIR, phir)) {
         return false;
     }
-    DEBUG("PHIR: %04x", phir);
 
     u16 phstat1, phstat2;
     if (!readPHYRegister(PHSTAT1, phstat1) || !readPHYRegister(PHSTAT2, phstat2)) {
         return false;
     }
-    DEBUG("PHSTAT1: %04x", phstat1);
-    DEBUG("PHSTAT2: %04x", phstat2);
 
     Lock<NoInterrupts> lock;
     if (!(phstat1 & 1 << 2 /* LLSTAT */)) {
@@ -393,29 +353,21 @@ void VirtualETH::handleEXI() {
 }
 
 bool VirtualETH::init() {
+    DEBUG("Initializing EN28J60 (channel: %u, device: %u)", m_channel, m_device);
+
     m_bank = 0;
     m_latchingLinkStatus = false;
     m_linkStatus = false;
 
     reset();
 
-    {
-        EXI::Device device(m_channel, m_device, 0, &m_wasDetached);
-        if (!device.ok()) {
-            return false;
-        }
-        u16 cmd = 0x0;
-        if (!device.immWrite(&cmd, sizeof(cmd))) {
-            return false;
-        }
-        u32 id;
-        if (!device.immRead(&id, sizeof(id))) {
-            return false;
-        }
-        INFO("%08x", id);
-        if (id != 0xfa050000) {
-            return false;
-        }
+    u32 id;
+    if (!readID(id)) {
+        DEBUG("Failed to read ID");
+    }
+    if (id != 0xfa050000) {
+        DEBUG("Unexpected ID %08x", id);
+        return false;
     }
 
     u8 estat;
@@ -470,8 +422,6 @@ bool VirtualETH::init() {
         DEBUG("Failed to initialize MAC address");
         return false;
     }
-    const u8 *m = m_macAddr;
-    DEBUG("%02x:%02x:%02x:%02x:%02x:%02x", m[0], m[1], m[2], m[3], m[4], m[5]);
 
     if (!initPHY()) {
         DEBUG("Failed to initialize PHY");
@@ -483,30 +433,11 @@ bool VirtualETH::init() {
         return false;
     }
 
+    DEBUG("Initialized EN28J60");
     return true;
 }
 
 bool VirtualETH::initBuffer() {
-#define DUMP_REG(reg) \
-    { \
-        u16 r; \
-        if (!readControlRegister(reg, r, false)) { \
-            return false; \
-        } \
-        DEBUG(#reg ": %04x", r); \
-    }
-#undef DUMP_REG
-#define DUMP_REG(reg)
-
-    DUMP_REG(ERDPT)   // 1530 -> 0 -> 0
-    DUMP_REG(EWRPT)   // 0 -> 4096 -> 6662
-    DUMP_REG(ETXST)   // 0 -> 4096 -> 0
-    DUMP_REG(ETXND)   // 0 -> 8191 -> 1529
-    DUMP_REG(ERXST)   // 1530 -> 0 -> 0
-    DUMP_REG(ERXND)   // 8191 -> 4095 -> 6661
-    DUMP_REG(ERXRDPT) // 1530 -> 4095 -> 6661
-    DUMP_REG(ERXWRPT) // 0
-
     bool result = true;
 
     u16 erdpt = RXStart;
@@ -526,15 +457,6 @@ bool VirtualETH::initBuffer() {
 
     u16 erxrdpt = RXEnd;
     result = result && writeControlRegister(ERXRDPT, erxrdpt);
-
-    DUMP_REG(ERDPT)   // 1530 -> 0 -> 0
-    DUMP_REG(EWRPT)   // 0 -> 4096 -> 6662
-    DUMP_REG(ETXST)   // 0 -> 4096 -> 0
-    DUMP_REG(ETXND)   // 0 -> 8191 -> 1529
-    DUMP_REG(ERXST)   // 1530 -> 0 -> 0
-    DUMP_REG(ERXND)   // 8191 -> 4095 -> 6661
-    DUMP_REG(ERXRDPT) // 1530 -> 4095 -> 6661
-    DUMP_REG(ERXWRPT) // 0
 
     return true;
 }
@@ -647,6 +569,15 @@ bool VirtualETH::initEthernet() {
     result = result && bitFieldSet(ECON1, econ1Mask);
 
     return result;
+}
+
+bool VirtualETH::readID(u32 &id) {
+    EXI::Device device(m_channel, m_device, 0, &m_wasDetached);
+    if (!device.ok()) {
+        return false;
+    }
+    u16 cmd = 0;
+    return device.immWrite(&cmd, sizeof(cmd)) && device.immRead(&id, sizeof(id));
 }
 
 void VirtualETH::reset() {

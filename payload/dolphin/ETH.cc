@@ -3,13 +3,10 @@ extern "C" {
 }
 
 #include <payload/VirtualETH.hh>
-#include <portable/Log.hh>
 
 static VirtualETH *s_virtualETH = nullptr;
 
 s32 ETHInit(s32 mode) {
-    DEBUG("ETHInit %d", mode);
-
     s_virtualETH = VirtualETH::Instance();
     s32 result = s_virtualETH->init(mode);
     if (result >= 0) {
@@ -21,8 +18,6 @@ s32 ETHInit(s32 mode) {
 }
 
 void ETHGetMACAddr(u8 *macaddr) {
-    DEBUG("ETHGetMACAddr %p", macaddr);
-
     if (s_virtualETH) {
         s_virtualETH->getMACAddr(macaddr);
         return;
@@ -32,8 +27,6 @@ void ETHGetMACAddr(u8 *macaddr) {
 }
 
 void ETHSetRecvCallback(ETHCallback0 callback0, ETHCallback1 callback1) {
-    DEBUG("ETHSetRecvCallback %p %p", callback0, callback1);
-
     if (s_virtualETH) {
         s_virtualETH->setRecvCallback(callback0, callback1);
         return;
@@ -51,8 +44,6 @@ BOOL ETHGetLinkStateAsync(BOOL *status) {
 }
 
 void ETHSetProtoType(u16 *array, s32 num) {
-    DEBUG("ETHSetProtoType %p %d", array, num);
-
     if (s_virtualETH) {
         s_virtualETH->setProtoType(array, num);
         return;
@@ -62,8 +53,6 @@ void ETHSetProtoType(u16 *array, s32 num) {
 }
 
 void ETHSendAsync(void *addr, s32 length, ETHCallback2 callback2) {
-    DEBUG("ETHSendAsync %p %d %p", addr, length, callback2);
-
     if (s_virtualETH) {
         s_virtualETH->sendAsync(addr, length, callback2);
         return;
@@ -73,8 +62,6 @@ void ETHSendAsync(void *addr, s32 length, ETHCallback2 callback2) {
 }
 
 void ETHAddMulticastAddress(const u8 macaddr[6]) {
-    DEBUG("ETHAddMulticastAddress %p", macaddr);
-
     if (s_virtualETH) {
         s_virtualETH->addMulticastAddress(macaddr);
         return;
@@ -84,8 +71,6 @@ void ETHAddMulticastAddress(const u8 macaddr[6]) {
 }
 
 void ETHClearMulticastAddresses() {
-    DEBUG("ETHClearMulticastAddresses");
-
     if (s_virtualETH) {
         s_virtualETH->clearMulticastAddresses();
         return;
