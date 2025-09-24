@@ -42,8 +42,10 @@ SceneCardSelect::~SceneCardSelect() {}
 
 void SceneCardSelect::init() {
     Kart2DCommon *kart2DCommon = Kart2DCommon::Instance();
-    kart2DCommon->changeUnicodeTexture("Race 5 ghosts", 23, m_buttonScreens[0], "Name");
-    kart2DCommon->changeUnicodeTexture("Watch 5 ghosts", 23, m_buttonScreens[1], "Name");
+    J2DPane *pane = m_buttonScreens[0].search("TextO");
+    kart2DCommon->changeUnicodeTexture("Race 5 ghosts", 23, m_buttonScreens[0], "Name", pane);
+    pane = m_buttonScreens[1].search("TextO");
+    kart2DCommon->changeUnicodeTexture("Watch 5 ghosts", 23, m_buttonScreens[1], "Name", pane);
 
     wait();
 }

@@ -5,10 +5,6 @@
 #include <portable/Algorithm.hh>
 #include <portable/UTF8.hh>
 
-extern "C" {
-#include <string.h>
-}
-
 void Kart2DCommon::changeUnicodeTexture(const char *text, u32 count, J2DScreen &screen,
         const char *prefix, f32 *startX, f32 *endX) {
     u32 length = UTF8::Length(text);
@@ -26,6 +22,14 @@ void Kart2DCommon::changeUnicodeTexture(const char *text, u32 count, J2DScreen &
             *endX = picture->m_offset.x;
         }
     }
+}
+
+void Kart2DCommon::changeUnicodeTexture(const char *text, u32 count, J2DScreen &screen, const char *prefix,
+        J2DPane *offsetPane) {
+    f32 startX, endX;
+    changeUnicodeTexture(text, count, screen, prefix, &startX, &endX);
+    offsetPane->m_offset.x = -(startX + endX) / 2.0f;
+    offsetPane->calcMtx();
 }
 
 void Kart2DCommon::changeNumberTexture(u32 number, u32 maxDigits, J2DScreen &screen,
