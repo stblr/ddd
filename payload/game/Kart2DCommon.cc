@@ -24,12 +24,15 @@ void Kart2DCommon::changeUnicodeTexture(const char *text, u32 count, J2DScreen &
     }
 }
 
-void Kart2DCommon::changeUnicodeTexture(const char *text, u32 count, J2DScreen &screen, const char *prefix,
-        J2DPane *offsetPane) {
+void Kart2DCommon::changeUnicodeTexture(const char *text, u32 count, J2DScreen &screen,
+        const char *prefix, bool center) {
     f32 startX, endX;
     changeUnicodeTexture(text, count, screen, prefix, &startX, &endX);
-    offsetPane->m_offset.x = -(startX + endX) / 2.0f;
-    offsetPane->calcMtx();
+    if (center) {
+        J2DPane *pane = screen.search("%sO", prefix);
+        pane->m_offset.x = -(startX + endX) / 2.0f;
+        pane->calcMtx();
+    }
 }
 
 void Kart2DCommon::changeNumberTexture(u32 number, u32 maxDigits, J2DScreen &screen,
