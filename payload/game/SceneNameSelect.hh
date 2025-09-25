@@ -1,11 +1,9 @@
 #pragma once
 
-#include "game/NameEntryHelper.hh"
 #include "game/Scene.hh"
 
 #include <jsystem/J2DScreen.hh>
 #include <portable/Array.hh>
-#include <portable/UniquePtr.hh>
 
 class SceneNameSelect : public Scene {
 public:
@@ -16,6 +14,10 @@ public:
     void calc() override;
 
 private:
+    enum {
+        NameCount = 4,
+    };
+
     typedef void (SceneNameSelect::*State)();
 
     void slideIn();
@@ -30,25 +32,18 @@ private:
     void stateWait();
     void stateNextScene();
 
-    void readNames();
-    void writeNames();
-
     State m_state;
     u32 m_padCount;
-    Array<Array<char, 4>, 4> m_savedNames;
-    Array<Array<char, 4>, 4> m_unsavedNames;
     u32 m_nextScene;
     J2DScreen m_mainScreen;
     J2DScreen m_padCountScreen;
+    Array<J2DScreen, NameCount> m_nameScreens;
     J2DAnmBase *m_mainAnmTransform;
     J2DAnmBase *m_nameAnmTransform;
-    J2DAnmBase *m_nameCircleAnmTransform;
     J2DAnmBase *m_padCountAnmTransform;
     J2DAnmBase *m_padCountCircleAnmTransform;
     u8 m_mainAnmTransformFrame;
     u8 m_nameAnmTransformFrame;
-    u8 m_nameCircleAnmTransformFrame;
     u8 m_padCountAnmTransformFrame;
     u8 m_padCountCircleAnmTransformFrame;
-    Array<UniquePtr<NameEntryHelper>, 4> m_nameEntryHelpers;
 };
