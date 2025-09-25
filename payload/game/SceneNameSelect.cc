@@ -22,7 +22,7 @@ SceneNameSelect::SceneNameSelect(JKRArchive *archive, JKRHeap *heap) : Scene(arc
     m_mainScreen.set("SelectName.blo", 0x1040000, lanEntryArchive);
     m_padCountScreen.set("PlayerIcon.blo", 0x1040000, m_archive);
     for (u32 i = 0; i < m_nameScreens.count(); i++) {
-        m_nameScreens[i].set("SelectNameName.blo", 0x1040000, lanEntryArchive);
+        m_nameScreens[i].set("SelectNameName.blo", 0x1040000, m_archive);
     }
 
     m_padCountScreen.search("Ns1234")->m_isVisible = false;
