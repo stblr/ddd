@@ -15,7 +15,7 @@ public:
 
 private:
     enum {
-        NameCount = 4,
+        NameCount = 6,
     };
 
     typedef void (SceneNameSelect::*State)();
@@ -40,10 +40,14 @@ private:
     Array<J2DScreen, NameCount> m_nameScreens;
     J2DAnmBase *m_mainAnmTransform;
     J2DAnmBase *m_nameAnmTransform;
+    Array<J2DAnmBase *, NameCount> m_outlineAnmTevRegKeys;
+    Array<J2DAnmBase *, NameCount> m_padAnmColors;
     J2DAnmBase *m_padCountAnmTransform;
     J2DAnmBase *m_padCountCircleAnmTransform;
     u8 m_mainAnmTransformFrame;
     u8 m_nameAnmTransformFrame;
+    Array<u8, NameCount> m_outlineAnmTevRegKeyFrames;
+    Array<u8, NameCount> m_padAnmColorFrames;
     u8 m_padCountAnmTransformFrame;
     u8 m_padCountCircleAnmTransformFrame;
 };
