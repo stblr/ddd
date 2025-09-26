@@ -40,6 +40,12 @@ SceneNameSelect::SceneNameSelect(JKRArchive *archive, JKRHeap *heap) : Scene(arc
     for (u32 i = 0; i < 4; i++) {
         m_mainScreen.search("ENplay%u", i + 1)->setAnimation(m_nameAnmTransform);
     }
+    for (u32 i = 0; i < m_nameAnmTextureSRTKeys.count(); i++) {
+        m_nameAnmTextureSRTKeys[i] =
+                J2DAnmLoaderDataBase::Load("select_character_cc.btk", m_archive);
+        m_nameAnmTextureSRTKeys[i]->searchUpdateMaterialID(&m_nameScreens[i]);
+        m_nameScreens[i].setAnimation(m_nameAnmTextureSRTKeys[i]);
+    }
     for (u32 i = 0; i < m_outlineAnmTevRegKeys.count(); i++) {
         m_outlineAnmTevRegKeys[i] =
                 J2DAnmLoaderDataBase::Load("select_character_cc.brk", m_archive);
@@ -56,6 +62,7 @@ SceneNameSelect::SceneNameSelect(JKRArchive *archive, JKRHeap *heap) : Scene(arc
     m_padCountCircleAnmTransform = J2DAnmLoaderDataBase::Load("PlayerIcon.bck", m_archive);
     m_padCountScreen.search("Cstok_pb")->setAnimation(m_padCountCircleAnmTransform);
 
+    m_nameAnmTextureSRTKeyFrames.fill(0);
     m_padCountCircleAnmTransformFrame = 0;
 }
 
@@ -99,7 +106,7 @@ void SceneNameSelect::draw() {
     MenuTitleLine::Instance()->draw(m_graphContext);
 
     m_mainScreen.draw(0.0f, 0.0f, m_graphContext);
-    //m_padCountScreen.draw(0.0f, 0.0f, m_graphContext);
+    // m_padCountScreen.draw(0.0f, 0.0f, m_graphContext);
 }
 
 void SceneNameSelect::calc() {
@@ -109,10 +116,16 @@ void SceneNameSelect::calc() {
     MenuTitleLine::Instance()->calc();
 
     m_nameAnmTransformFrame = m_padCount;
+    for (u32 i = 0; i < m_nameAnmTextureSRTKeyFrames.count(); i++) {
+        m_nameAnmTextureSRTKeyFrames[i] = (m_nameAnmTextureSRTKeyFrames[i] + 1) % 120;
+    }
     m_padCountCircleAnmTransformFrame = 14 + (m_padCountCircleAnmTransformFrame - 13) % 60;
 
     m_mainAnmTransform->m_frame = m_mainAnmTransformFrame;
     m_nameAnmTransform->m_frame = m_nameAnmTransformFrame;
+    for (u32 i = 0; i < m_nameAnmTextureSRTKeys.count(); i++) {
+        m_nameAnmTextureSRTKeys[i]->m_frame = m_nameAnmTextureSRTKeyFrames[i];
+    }
     for (u32 i = 0; i < m_outlineAnmTevRegKeys.count(); i++) {
         m_outlineAnmTevRegKeys[i]->m_frame = m_outlineAnmTevRegKeyFrames[i];
     }
