@@ -62,6 +62,10 @@ impl Shard {
                 self.read_connection(now, addr, buffer.as_slice())?;
                 buffer
             }
+            Message::Client { buffer, .. } => {
+                self.read_client()?;
+                buffer
+            }
         };
         self.receiver.release(index, buffer)?;
         Ok(())
@@ -96,6 +100,24 @@ impl Shard {
             _ => (),
         }
         Ok(())
+    }
+
+    fn read_client(&self, now: Instant, addr: SocketAddr, client_pk: PublicKey, message: &[u8]) -> Result<()> {
+        // Any MITM can trivially replay M1, thus we need to wait for a valid session
+        // message to consider the client to be authenticated.
+        let is_full = self.clients.len() >= 1000;
+        match self.clients.entry(client_pk) {
+            Entry::Occupied(o) => {
+                let client = o.into_mut();
+                client.set_addr(addr);
+                client
+            }
+            Entry::Vacant(v) if !is_full => {
+                let client = Client::new(now, addr, client_pk);
+                v.insert(client)
+            }
+            _ => return Ok(()),
+        }
     }
 
     fn write(&mut self, now: Instant) -> Result<()> {
