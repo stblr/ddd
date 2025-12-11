@@ -49,7 +49,8 @@ private:
         Vec2f timePositions[10];
         u8 _098[0x4d0 - 0x098];
         Vec2f lapTimePositions[9][11];
-        u8 _7e8[0x854 - 0x7e8];
+        u32 items[2][2];
+        u8 _7f8[0x854 - 0x7f8];
         Vec2f rankPositions[8];
         u8 _894[0x8e8 - 0x894];
     };
@@ -88,6 +89,8 @@ private:
     void setup();
     void REPLACED(calcLap)();
     REPLACE void calcLap();
+    void REPLACED(setLayoutData)();
+    REPLACE void setLayoutData();
     void REPLACED(calcPlayerMark)();
     REPLACE void calcPlayerMark();
     void REPLACED(anmTA)(s32 status);
@@ -110,7 +113,12 @@ private:
     void getStartLapTimePos(s32 frame, s32 index, f32 &x);
     void getGoalLapTimePos(s32 frame, s32 index, f32 &x);
 
-    u8 _0000[0x01b4 - 0x0000];
+    ResTIMG *m_driverTextures[20];
+    ResTIMG *m_playerTextures[8];
+    ResTIMG *m_characterTextures[20];
+    u8 _00c0[0x00e4 - 0x00c0];
+    ResTIMG *m_itemTextures[31];
+    u8 _0160[0x01b4 - 0x0160];
     J2DGraphContext *m_graphContext;
     u8 _01b8[0x01bc - 0x01b8];
     CanNotSaveG2D *m_canNotSaveG2D;
@@ -132,7 +140,8 @@ private:
     Vec2f m_playerMarkPositions[4][8];
     u8 _1100[0x1110 - 0x1100];
     MinimapConfig m_minimapConfig;
-    u8 _1124[0x1150 - 0x1124];
+    u8 _1124[0x1130 - 0x1124];
+    K2DPicture *m_driverPictures[8];
     K2DPicture *m_playerPictures[8];
     u8 _1170[0x1550 - 0x1170];
     J2DPicture::CornerColors m_lapTimeCornerColors;

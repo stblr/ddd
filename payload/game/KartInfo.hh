@@ -22,6 +22,6 @@ private:
 
     const KartDB *m_kartDB;
     KartCharacter m_characters[2];
-    u8 _04[0x18 - 0x14];
+    u8 _14[0x18 - 0x14];
 };
 size_assert(KartInfo, 0x18);

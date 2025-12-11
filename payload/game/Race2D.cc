@@ -1,5 +1,6 @@
 #include "Race2D.hh"
 
+#include "game/ItemObjMgr.hh"
 #include "game/J2DManager.hh"
 #include "game/Kart2DCommon.hh"
 #include "game/KartCtrl.hh"
@@ -359,6 +360,39 @@ void Race2D::calcPlayerMark() {
             }
         }
         Sort(m_playerMarkIndices[i], kartCount, comparator);
+    }
+}
+
+void Race2D::setLayoutData() {
+    REPLACED(setLayoutData)();
+
+    if (!SequenceInfo::Instance().m_isOnline) {
+        return;
+    }
+
+    const RaceInfo &raceInfo = RaceInfo::Instance();
+    u32 kartCount = raceInfo.getKartCount();
+    ItemObjMgr *itemObjMgr = ItemObjMgr::Instance();
+    for (u32 i = 0; i < kartCount; i++) {
+        CharacterIndication &indication = m_characterIndications[i];
+        for (u32 j = 0; j < 2; j++) {
+            K2DPicture *iconPicture = indication.characters[j].iconPicture;
+            ItemObj *itemObj = itemObjMgr->getKartEquipItem(i, j);
+            if (itemObj) {
+                u32 itemKind = itemObj->getKind();
+                iconPicture->changeTexture(m_itemTextures[itemKind], 0);
+            } else {
+                const KartInfo &kartInfo = raceInfo.getKartInfo(i);
+                const CharDB *charDB = kartInfo.getCharDB(j);
+                iconPicture->changeTexture(m_characterTextures[charDB->id - 1], 0);
+            }
+        }
+        K2DPicture *picture = m_driverPictures[i];
+        ItemObj *itemObj = itemObjMgr->getKartEquipItem(i);
+        if (itemObj) {
+            u32 itemKind = itemObj->getKind();
+            picture->changeTexture(m_itemTextures[itemKind], 0);
+        }
     }
 }
 
