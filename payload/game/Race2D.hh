@@ -50,7 +50,10 @@ private:
         u8 _098[0x4d0 - 0x098];
         Vec2f lapTimePositions[9][11];
         u32 items[2][2];
-        u8 _7f8[0x854 - 0x7f8];
+        u8 _7f8[0x82c - 0x7f8];
+        u32 itemPeriods[2];
+        u32 itemFrames[2];
+        u8 _83c[0x854 - 0x83c];
         Vec2f rankPositions[8];
         u8 _894[0x8e8 - 0x894];
     };
@@ -164,6 +167,7 @@ private:
     static GXColor s_playerNumberColors[16];
     static f32 s_spinRotate[8];
     static s32 s_preLap[4];
+    static s32 s_itemStates[4][2];
     static s32 s_thunderAnm[8];
 };
 size_assert(Race2D, 0x4ec4);

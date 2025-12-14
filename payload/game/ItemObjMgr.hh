@@ -13,6 +13,7 @@ public:
     u32 moveCount(u32 item) const;
     ItemObj *getKartEquipItem(u32 kart, u32 driver) const;
     ItemObj *getKartEquipItem(u32 kart) const;
+    bool isRollingSlot(u32 kart, u32 driver);
     void clearKartItemUseTriggerList();
     void REPLACED(startItemShuffleSingle)(u32 kart, bool r5);
     REPLACE void startItemShuffleSingle(u32 kart, bool r5);
