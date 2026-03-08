@@ -13,5 +13,9 @@ version = "0.38.1"
 default-features = false
 features = ["build_core", "elf", "pe", "read_core"]
 
+[dependencies.syscalls]
+version = "0.8.1"
+default-features = false
+
 [lints]
 workspace = true
