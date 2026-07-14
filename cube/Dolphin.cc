@@ -17,6 +17,14 @@ bool Dolphin::ok() const {
     return Resource::ok();
 }
 
+bool Dolphin::getElapsedTime(u32 &elapsedTime) {
+    alignas(0x20) IoctlvPair pairs[1];
+    pairs[0].data = &elapsedTime;
+    pairs[0].size = sizeof(elapsedTime);
+
+    return ioctlv(Ioctlv::GetElapsedTime, 0, 1, pairs) == 0;
+}
+
 bool Dolphin::getVersion(Array<char, 64> &versionString, DolphinVersion &version) {
     alignas(0x20) IoctlvPair pairs[1];
     pairs[0].data = versionString.values();
