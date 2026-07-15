@@ -16,19 +16,21 @@ private:
     class File {
     public:
         File(u32 size);
-        u32 size() const;
+        virtual u32 size() const = 0;
         bool isInstalled(const char *path);
         virtual bool install(FS &fs, const char *path) = 0;
 
     private:
         virtual bool compare(const u8 (&data)[MaxChunkSize], u32 size, u32 offset) = 0;
 
+    protected:
         u32 m_size;
     };
 
     class MemoryFile : public File {
     public:
         MemoryFile(const u8 *data, u32 size);
+        u32 size() const override;
         bool install(FS &fs, const char *path) override;
 
     private:
@@ -40,6 +42,7 @@ private:
     class StorageFile : public File {
     public:
         StorageFile(Storage::FileHandle &file, u32 size, u32 offset);
+        u32 size() const override;
         bool install(FS &fs, const char *path) override;
 
     private:

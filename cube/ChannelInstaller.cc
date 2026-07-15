@@ -24,10 +24,6 @@ bool ChannelInstaller::Install(Storage::FileHandle &file, u32 size, u32 offset) 
 
 ChannelInstaller::File::File(u32 size) : m_size(size) {}
 
-u32 ChannelInstaller::File::size() const {
-    return m_size;
-}
-
 bool ChannelInstaller::File::isInstalled(const char *path) {
     IOS::File nandFile(path, IOS::Mode::Read);
     if (nandFile.ok()) {
@@ -35,7 +31,7 @@ bool ChannelInstaller::File::isInstalled(const char *path) {
     }
 
     IOS::File::Stats stats;
-    if (!nandFile.getStats(stats) || stats.size != m_size) {
+    if (!nandFile.getStats(stats) || stats.size != File::size()) {
         return false;
     }
 
@@ -56,6 +52,10 @@ bool ChannelInstaller::File::isInstalled(const char *path) {
 
 ChannelInstaller::MemoryFile::MemoryFile(const u8 *data, u32 size) : File(size), m_data(data) {}
 
+u32 ChannelInstaller::MemoryFile::size() const {
+    return m_size;
+}
+
 bool ChannelInstaller::MemoryFile::install(FS &fs, const char *path) {
     return fs.writeFile(path, m_data, size(), 0660);
 }
@@ -68,6 +68,10 @@ ChannelInstaller::StorageFile::StorageFile(Storage::FileHandle &file, u32 size, 
     : File(size)
     , m_file(file)
     , m_offset(offset) {}
+
+u32 ChannelInstaller::StorageFile::size() const {
+    return m_size;
+}
 
 bool ChannelInstaller::StorageFile::install(FS &fs, const char *path) {
     fs.remove(path);
