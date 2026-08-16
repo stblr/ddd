@@ -29,3 +29,6 @@ ddd-formats = { path = "../formats" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+rustls-graviola = "0.4.0"
