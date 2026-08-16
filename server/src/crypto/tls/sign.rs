@@ -332,29 +332,29 @@ mod tests {
 
         // Valid inputs: RSA private keys in PKCS#1 and PKCS#8 DER format
         let rsa2048_pkcs1 = pki_types::PrivateKeyDer::Pkcs1(pki_types::PrivatePkcs1KeyDer::from(
-            include_bytes!("../../graviola/src/high/rsa/rsa2048.der").to_vec(),
+            include_bytes!("rsa/rsa2048.der").to_vec(),
         ));
         assert!(provider.load_private_key(rsa2048_pkcs1).is_ok());
         let rsa2048_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
-            include_bytes!("../../graviola/src/high/rsa/rsa2048.pkcs8.der").to_vec(),
+            include_bytes!("rsa/rsa2048.pkcs8.der").to_vec(),
         ));
         assert!(provider.load_private_key(rsa2048_pkcs8).is_ok());
 
         // Valid inputs: ECDSA P256 and P384 keys in SEC1 and PKCS#8 DER format
         let ecdsap256_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
-            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.der").to_vec(),
+            include_bytes!("ecdsa/secp256r1.der").to_vec(),
         ));
         assert!(provider.load_private_key(ecdsap256_sec1).is_ok());
         let ecdsap256_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
-            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.pkcs8.der").to_vec(),
+            include_bytes!("ecdsa/secp256r1.pkcs8.der").to_vec(),
         ));
         assert!(provider.load_private_key(ecdsap256_pkcs8).is_ok());
         let ecdsap384_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
-            include_bytes!("../../graviola/src/high/ecdsa/secp384r1.der").to_vec(),
+            include_bytes!("ecdsa/secp384r1.der").to_vec(),
         ));
         assert!(provider.load_private_key(ecdsap384_sec1).is_ok());
         let ecdsap384_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
-            include_bytes!("../../graviola/src/high/ecdsa/secp384r1.pkcs8.der").to_vec(),
+            include_bytes!("ecdsa/secp384r1.pkcs8.der").to_vec(),
         ));
         assert!(provider.load_private_key(ecdsap384_pkcs8).is_ok());
 
@@ -372,7 +372,7 @@ mod tests {
         ));
         assert!(provider.load_private_key(invalid_sec1).is_err());
         let ecdsap256_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
-            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.wrong-version.der").to_vec(),
+            include_bytes!("ecdsa/secp256r1.wrong-version.der").to_vec(),
         ));
         assert!(provider.load_private_key(ecdsap256_sec1).is_err());
     }
@@ -490,7 +490,7 @@ mod tests {
     fn test_ecdsap256_signing_key() {
         let signing_key = Arc::new(
             ecdsa::SigningKey::<ecdsa::P256>::from_pkcs8_der(include_bytes!(
-                "../../graviola/src/high/ecdsa/secp256r1.pkcs8.der"
+                "ecdsa/secp256r1.pkcs8.der"
             ))
             .unwrap(),
         );
@@ -537,7 +537,7 @@ mod tests {
     fn test_ecdsap384_signing_key() {
         let signing_key = Arc::new(
             ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(include_bytes!(
-                "../../graviola/src/high/ecdsa/secp384r1.pkcs8.der"
+                "ecdsa/secp384r1.pkcs8.der"
             ))
             .unwrap(),
         );

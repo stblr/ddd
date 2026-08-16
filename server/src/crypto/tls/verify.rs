@@ -248,7 +248,7 @@ mod tests {
     fn test_ecdsap256_verify() {
         let signing_key = Arc::new(
             ecdsa::SigningKey::<ecdsa::P256>::from_pkcs8_der(include_bytes!(
-                "../../graviola/src/high/ecdsa/secp256r1.pkcs8.der"
+                "ecdsa/secp256r1.pkcs8.der"
             ))
             .unwrap(),
         );
@@ -276,7 +276,7 @@ mod tests {
     fn test_ecdsap384_verify() {
         let signing_key = Arc::new(
             ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(include_bytes!(
-                "../../graviola/src/high/ecdsa/secp384r1.pkcs8.der"
+                "ecdsa/secp384r1.pkcs8.der"
             ))
             .unwrap(),
         );
@@ -304,7 +304,7 @@ mod tests {
     fn test_rsa_verify() {
         let signing_key = Arc::new(
             rsa::SigningKey::from_pkcs8_der(include_bytes!(
-                "../../graviola/src/high/rsa/rsa2048.pkcs8.der"
+                "rsa/rsa2048.pkcs8.der"
             ))
             .unwrap(),
         );
