@@ -83,8 +83,6 @@ mod tests {
         for other in OtherProvider::OTHERS {
             test_key_exchange(tls::kx::X25519MLKEM768, *other, KeyType::Rsa2048);
             test_key_exchange(&tls::kx::X25519, *other, KeyType::Rsa2048);
-            test_key_exchange(&tls::kx::P256, *other, KeyType::Rsa2048);
-            test_key_exchange(&tls::kx::P384, *other, KeyType::Rsa2048);
         }
     }
 

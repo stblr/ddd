@@ -1,4 +1,4 @@
-use graviola::key_agreement::mlkem768;
+use orion::hazardous::kem::mlkem768::{Ciphertext, EncapsulationKey, KeyPair};
 use rustls::crypto::{ActiveKeyExchange, CompletedKeyExchange, SharedSecret, SupportedKxGroup};
 use rustls::ffdhe_groups::FfdheGroup;
 use rustls::{Error, NamedGroup, PeerMisbehaved, ProtocolVersion};
@@ -13,30 +13,26 @@ impl MlKem768 {
 
 impl SupportedKxGroup for MlKem768 {
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
-        let decaps_key =
-            mlkem768::DecapKey::generate().map_err(|_| Error::FailedToGetRandomBytes)?;
-        let encaps_key_bytes = decaps_key.encapsulation_key().as_bytes();
+        let keypair = KeyPair::generate()
+            .map_err(|_| Error::FailedToGetRandomBytes)?;
 
-        Ok(Box::new(Active {
-            decaps_key,
-            encaps_key_bytes,
-        }))
+        Ok(Box::new(Active(keypair)))
     }
 
     fn start_and_complete(&self, client_share: &[u8]) -> Result<CompletedKeyExchange, Error> {
         let client_share_array = client_share.try_into().map_err(|_| INVALID_KEY_SHARE)?;
 
         let encaps_key =
-            mlkem768::EncapKey::from_bytes(client_share_array).map_err(|_| INVALID_KEY_SHARE)?;
+            EncapsulationKey::from_slice(client_share_array).map_err(|_| INVALID_KEY_SHARE)?;
 
         let (shared_secret, ciphertext) = encaps_key
-            .encaps()
+            .encap()
             .map_err(|_| Error::FailedToGetRandomBytes)?;
 
         Ok(CompletedKeyExchange {
             group: self.name(),
             pub_key: Vec::from(ciphertext.as_ref()),
-            secret: SharedSecret::from(shared_secret.as_ref().as_slice()),
+            secret: SharedSecret::from(shared_secret.unprotected_as_bytes()),
         })
     }
 
@@ -53,23 +49,20 @@ impl SupportedKxGroup for MlKem768 {
     }
 }
 
-struct Active {
-    decaps_key: mlkem768::DecapKey,
-    encaps_key_bytes: [u8; 1184],
-}
+struct Active(KeyPair);
 
 impl ActiveKeyExchange for Active {
     fn complete(self: Box<Self>, peer_pub_key: &[u8]) -> Result<SharedSecret, Error> {
         let peer_pub_key_array: [u8; 1088] =
             peer_pub_key.try_into().map_err(|_| INVALID_KEY_SHARE)?;
-        let ciphertext = mlkem768::Ciphertext::from(peer_pub_key_array);
-        let shared_secret = self.decaps_key.decaps(&ciphertext);
+        let ciphertext = Ciphertext::from_slice(&peer_pub_key_array).unwrap();
+        let shared_secret = self.0.private().decap(&ciphertext).unwrap();
 
-        Ok(SharedSecret::from(shared_secret.as_ref().as_slice()))
+        Ok(SharedSecret::from(shared_secret.unprotected_as_bytes()))
     }
 
     fn pub_key(&self) -> &[u8] {
-        &self.encaps_key_bytes
+        &self.0.public().as_ref()
     }
 
     fn ffdhe_group(&self) -> Option<FfdheGroup<'static>> {
