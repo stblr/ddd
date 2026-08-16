@@ -1,0 +1,591 @@
+use core::fmt;
+use std::sync::Arc;
+
+use graviola::hashing;
+use graviola::signing::{ecdsa, eddsa, rsa};
+use rustls::pki_types::SubjectPublicKeyInfoDer;
+use rustls::{SignatureScheme, pki_types, sign};
+
+#[derive(Debug)]
+pub(super) struct Provider;
+
+impl rustls::crypto::KeyProvider for Provider {
+    fn load_private_key(
+        &self,
+        key_der: pki_types::PrivateKeyDer<'static>,
+    ) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+        match key_der {
+            pki_types::PrivateKeyDer::Pkcs8(p8) => load_pkcs8(p8),
+            pki_types::PrivateKeyDer::Pkcs1(p1) => load_pkcs1(p1),
+            pki_types::PrivateKeyDer::Sec1(sec1) => load_sec1(sec1),
+            _ => Err(rustls::Error::General("unhandled private key".to_string())),
+        }
+    }
+}
+
+fn load_pkcs8(
+    key_der: pki_types::PrivatePkcs8KeyDer<'static>,
+) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+    if let Ok(rsa) = rsa::SigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
+        return Ok(Arc::new(Rsa(Arc::new(rsa))));
+    }
+
+    if let Ok(ecp256) = ecdsa::SigningKey::<ecdsa::P256>::from_pkcs8_der(key_der.secret_pkcs8_der())
+    {
+        return Ok(Arc::new(EcdsaP256(Arc::new(ecp256))));
+    }
+
+    if let Ok(ecp384) = ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(key_der.secret_pkcs8_der())
+    {
+        return Ok(Arc::new(EcdsaP384(Arc::new(ecp384))));
+    }
+
+    if let Ok(ed25519) = eddsa::Ed25519SigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
+        return Ok(Arc::new(Ed25519(Arc::new(ed25519))));
+    }
+
+    Err(rustls::Error::General("unhandled pkcs8 format".to_string()))
+}
+
+fn load_pkcs1(
+    key_der: pki_types::PrivatePkcs1KeyDer<'static>,
+) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+    let rsa = rsa::SigningKey::from_pkcs1_der(key_der.secret_pkcs1_der())
+        .map_err(|err| rustls::Error::General(format!("cannot parse RSA key: {err:?}")))?;
+
+    Ok(Arc::new(Rsa(Arc::new(rsa))))
+}
+
+fn load_sec1(
+    key_der: pki_types::PrivateSec1KeyDer<'static>,
+) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+    if let Ok(ecp256) = ecdsa::SigningKey::<ecdsa::P256>::from_sec1_der(key_der.secret_sec1_der()) {
+        return Ok(Arc::new(EcdsaP256(Arc::new(ecp256))));
+    }
+
+    if let Ok(ecp384) = ecdsa::SigningKey::<ecdsa::P384>::from_sec1_der(key_der.secret_sec1_der()) {
+        return Ok(Arc::new(EcdsaP384(Arc::new(ecp384))));
+    }
+
+    Err(rustls::Error::General(
+        "unhandled sec1 format/curve".to_string(),
+    ))
+}
+
+struct Rsa(Arc<rsa::SigningKey>);
+
+impl sign::SigningKey for Rsa {
+    fn choose_scheme(
+        &self,
+        schemes: &[SignatureScheme],
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
+        if schemes.contains(&SignatureScheme::RSA_PSS_SHA512) {
+            Some(Box::new(RsaSigner {
+                key: Arc::clone(&self.0),
+                scheme: SignatureScheme::RSA_PSS_SHA512,
+            }))
+        } else if schemes.contains(&SignatureScheme::RSA_PSS_SHA384) {
+            Some(Box::new(RsaSigner {
+                key: Arc::clone(&self.0),
+                scheme: SignatureScheme::RSA_PSS_SHA384,
+            }))
+        } else if schemes.contains(&SignatureScheme::RSA_PSS_SHA256) {
+            Some(Box::new(RsaSigner {
+                key: Arc::clone(&self.0),
+                scheme: SignatureScheme::RSA_PSS_SHA256,
+            }))
+        } else if schemes.contains(&SignatureScheme::RSA_PKCS1_SHA512) {
+            Some(Box::new(RsaSigner {
+                key: Arc::clone(&self.0),
+                scheme: SignatureScheme::RSA_PKCS1_SHA512,
+            }))
+        } else if schemes.contains(&SignatureScheme::RSA_PKCS1_SHA384) {
+            Some(Box::new(RsaSigner {
+                key: Arc::clone(&self.0),
+                scheme: SignatureScheme::RSA_PKCS1_SHA384,
+            }))
+        } else if schemes.contains(&SignatureScheme::RSA_PKCS1_SHA256) {
+            Some(Box::new(RsaSigner {
+                key: Arc::clone(&self.0),
+                scheme: SignatureScheme::RSA_PKCS1_SHA256,
+            }))
+        } else {
+            None
+        }
+    }
+
+    fn algorithm(&self) -> rustls::SignatureAlgorithm {
+        rustls::SignatureAlgorithm::RSA
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let size = self.0.modulus_len_bytes() + 64;
+        let mut buffer = vec![0u8; size];
+
+        let pk = self.0.public_key();
+        let used = pk.to_spki_der(&mut buffer).ok()?.len();
+
+        buffer.truncate(used);
+        Some(SubjectPublicKeyInfoDer::from(buffer))
+    }
+}
+
+impl fmt::Debug for Rsa {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("Rsa").finish_non_exhaustive()
+    }
+}
+
+struct RsaSigner {
+    key: Arc<rsa::SigningKey>,
+    scheme: SignatureScheme,
+}
+
+impl sign::Signer for RsaSigner {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        let mut sig = vec![0u8; self.key.modulus_len_bytes()];
+        match self.scheme {
+            SignatureScheme::RSA_PKCS1_SHA256 => self.key.sign_pkcs1_sha256(&mut sig, message),
+            SignatureScheme::RSA_PKCS1_SHA384 => self.key.sign_pkcs1_sha384(&mut sig, message),
+            SignatureScheme::RSA_PKCS1_SHA512 => self.key.sign_pkcs1_sha512(&mut sig, message),
+            SignatureScheme::RSA_PSS_SHA256 => self.key.sign_pss_sha256(&mut sig, message),
+            SignatureScheme::RSA_PSS_SHA384 => self.key.sign_pss_sha384(&mut sig, message),
+            SignatureScheme::RSA_PSS_SHA512 => self.key.sign_pss_sha512(&mut sig, message),
+            _ => unreachable!(),
+        }
+        .map_err(|err| rustls::Error::General(format!("signing failed: {err:?}")))?;
+
+        Ok(sig)
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        self.scheme
+    }
+}
+
+impl fmt::Debug for RsaSigner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("RsaSigner").finish_non_exhaustive()
+    }
+}
+
+struct EcdsaP256(Arc<ecdsa::SigningKey<ecdsa::P256>>);
+
+impl sign::SigningKey for EcdsaP256 {
+    fn choose_scheme(
+        &self,
+        schemes: &[SignatureScheme],
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
+        if schemes.contains(&SignatureScheme::ECDSA_NISTP256_SHA256) {
+            Some(Box::new(Self(self.0.clone())))
+        } else {
+            None
+        }
+    }
+
+    fn algorithm(&self) -> rustls::SignatureAlgorithm {
+        rustls::SignatureAlgorithm::ECDSA
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let mut buffer = vec![0u8; 128];
+
+        let used = self.0.to_spki_der(&mut buffer).ok()?.len();
+
+        buffer.truncate(used);
+        Some(SubjectPublicKeyInfoDer::from(buffer))
+    }
+}
+
+impl sign::Signer for EcdsaP256 {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        let mut sig_buffer = [0u8; 128];
+        let sig = self
+            .0
+            .sign_asn1::<hashing::Sha256>(&[message], &mut sig_buffer)
+            .map_err(|err| rustls::Error::General(format!("signing failed: {err:?}")))?;
+
+        Ok(sig.to_vec())
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        SignatureScheme::ECDSA_NISTP256_SHA256
+    }
+}
+
+impl fmt::Debug for EcdsaP256 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("EcdsaP256").finish_non_exhaustive()
+    }
+}
+
+struct EcdsaP384(Arc<ecdsa::SigningKey<ecdsa::P384>>);
+
+impl sign::SigningKey for EcdsaP384 {
+    fn choose_scheme(
+        &self,
+        schemes: &[SignatureScheme],
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
+        if schemes.contains(&SignatureScheme::ECDSA_NISTP384_SHA384) {
+            Some(Box::new(Self(self.0.clone())))
+        } else {
+            None
+        }
+    }
+
+    fn algorithm(&self) -> rustls::SignatureAlgorithm {
+        rustls::SignatureAlgorithm::ECDSA
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let mut buffer = vec![0u8; 128];
+
+        let used = self.0.to_spki_der(&mut buffer).ok()?.len();
+
+        buffer.truncate(used);
+        Some(SubjectPublicKeyInfoDer::from(buffer))
+    }
+}
+
+impl sign::Signer for EcdsaP384 {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        let mut sig_buffer = [0u8; 128];
+        let sig = self
+            .0
+            .sign_asn1::<hashing::Sha384>(&[message], &mut sig_buffer)
+            .map_err(|err| rustls::Error::General(format!("signing failed: {err:?}")))?;
+
+        Ok(sig.to_vec())
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        SignatureScheme::ECDSA_NISTP384_SHA384
+    }
+}
+
+impl fmt::Debug for EcdsaP384 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("EcdsaP384").finish_non_exhaustive()
+    }
+}
+
+struct Ed25519(Arc<eddsa::Ed25519SigningKey>);
+
+impl sign::SigningKey for Ed25519 {
+    fn choose_scheme(
+        &self,
+        schemes: &[SignatureScheme],
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
+        if schemes.contains(&SignatureScheme::ED25519) {
+            Some(Box::new(Self(self.0.clone())))
+        } else {
+            None
+        }
+    }
+
+    fn algorithm(&self) -> rustls::SignatureAlgorithm {
+        rustls::SignatureAlgorithm::ED25519
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let mut buffer = [0; 64];
+        self.0
+            .public_key()
+            .to_spki_der(&mut buffer)
+            .ok()
+            .map(|bytes| SubjectPublicKeyInfoDer::from(bytes.to_vec()))
+    }
+}
+
+impl sign::Signer for Ed25519 {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        Ok(self.0.sign(message).to_vec())
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        SignatureScheme::ED25519
+    }
+}
+
+impl fmt::Debug for Ed25519 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("Ed25519").finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(panic = "unwind")]
+    use std::panic;
+
+    use graviola::signing::ecdsa;
+    use graviola::signing::eddsa::Ed25519SigningKey;
+    use graviola::signing::rsa;
+    use rustls::crypto::KeyProvider;
+    use rustls::sign::{Signer, SigningKey};
+
+    use super::*;
+
+    #[test]
+    fn test_load_signing_key() {
+        let provider = Provider;
+
+        // Valid inputs: RSA private keys in PKCS#1 and PKCS#8 DER format
+        let rsa2048_pkcs1 = pki_types::PrivateKeyDer::Pkcs1(pki_types::PrivatePkcs1KeyDer::from(
+            include_bytes!("../../graviola/src/high/rsa/rsa2048.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(rsa2048_pkcs1).is_ok());
+        let rsa2048_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            include_bytes!("../../graviola/src/high/rsa/rsa2048.pkcs8.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(rsa2048_pkcs8).is_ok());
+
+        // Valid inputs: ECDSA P256 and P384 keys in SEC1 and PKCS#8 DER format
+        let ecdsap256_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap256_sec1).is_ok());
+        let ecdsap256_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.pkcs8.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap256_pkcs8).is_ok());
+        let ecdsap384_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp384r1.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap384_sec1).is_ok());
+        let ecdsap384_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp384r1.pkcs8.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap384_pkcs8).is_ok());
+
+        // Error case: invalid key file
+        let invalid_pkcs1 = pki_types::PrivateKeyDer::Pkcs1(pki_types::PrivatePkcs1KeyDer::from(
+            [0u8; 1024].to_vec(),
+        ));
+        assert!(provider.load_private_key(invalid_pkcs1).is_err());
+        let invalid_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            [0u8; 1024].to_vec(),
+        ));
+        assert!(provider.load_private_key(invalid_pkcs8).is_err());
+        let invalid_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            [0u8; 1024].to_vec(),
+        ));
+        assert!(provider.load_private_key(invalid_sec1).is_err());
+        let ecdsap256_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.wrong-version.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap256_sec1).is_err());
+    }
+
+    #[test]
+    fn test_rsa_signing_key() {
+        let signing_key = Arc::new(rsa::SigningKey::generate(rsa::KeySize::Rsa2048).unwrap());
+        let rsa = Rsa(signing_key.clone());
+        println!("{:?}", rsa);
+        assert_eq!(rsa.algorithm(), rustls::SignatureAlgorithm::RSA);
+
+        // If multiple schemes are specified, choose PSS over PKCS#1 and then longest specified hash length.
+        assert!(rsa.choose_scheme(&[]).is_none());
+        assert_eq!(
+            rsa.choose_scheme(&[SignatureScheme::RSA_PKCS1_SHA256])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::RSA_PKCS1_SHA256
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::RSA_PKCS1_SHA256,
+                SignatureScheme::RSA_PSS_SHA256
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PSS_SHA256
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::RSA_PSS_SHA256,
+                SignatureScheme::RSA_PKCS1_SHA384
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PSS_SHA256
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::RSA_PSS_SHA512,
+                SignatureScheme::RSA_PSS_SHA256,
+                SignatureScheme::RSA_PSS_SHA384
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PSS_SHA512
+        );
+        // Don't choose non-RSA schemes.
+        assert!(
+            rsa.choose_scheme(&[SignatureScheme::ECDSA_NISTP256_SHA256])
+                .is_none()
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[SignatureScheme::ED25519, SignatureScheme::RSA_PSS_SHA384])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::RSA_PSS_SHA384
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::ECDSA_NISTP521_SHA512,
+                SignatureScheme::RSA_PKCS1_SHA384
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PKCS1_SHA384
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[SignatureScheme::ED448, SignatureScheme::RSA_PKCS1_SHA512])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::RSA_PKCS1_SHA512
+        );
+        // Don't choose SHA1.
+        assert!(
+            rsa.choose_scheme(&[SignatureScheme::RSA_PKCS1_SHA1])
+                .is_none()
+        );
+
+        // An RsaSigner should work with supported RSA schemes and raise an error for all other schemes.
+        let message = vec![0u8; 64];
+        for scheme in [
+            SignatureScheme::RSA_PSS_SHA256,
+            SignatureScheme::RSA_PSS_SHA384,
+            SignatureScheme::RSA_PSS_SHA512,
+            SignatureScheme::RSA_PKCS1_SHA256,
+            SignatureScheme::RSA_PKCS1_SHA384,
+            SignatureScheme::RSA_PKCS1_SHA512,
+        ] {
+            let signer = RsaSigner {
+                key: signing_key.clone(),
+                scheme,
+            };
+            assert!(signer.sign(&message).is_ok());
+            println!("{:?}", signer);
+        }
+        #[cfg(panic = "unwind")]
+        for scheme in [
+            SignatureScheme::RSA_PKCS1_SHA1,
+            SignatureScheme::ECDSA_NISTP256_SHA256,
+            SignatureScheme::ECDSA_NISTP384_SHA384,
+            SignatureScheme::ECDSA_NISTP521_SHA512,
+            SignatureScheme::ED25519,
+            SignatureScheme::ED448,
+        ] {
+            let signer = RsaSigner {
+                key: signing_key.clone(),
+                scheme,
+            };
+            assert!(panic::catch_unwind(|| signer.sign(&message)).is_err());
+        }
+    }
+
+    #[test]
+    fn test_ecdsap256_signing_key() {
+        let signing_key = Arc::new(
+            ecdsa::SigningKey::<ecdsa::P256>::from_pkcs8_der(include_bytes!(
+                "../../graviola/src/high/ecdsa/secp256r1.pkcs8.der"
+            ))
+            .unwrap(),
+        );
+        let ecdsa = EcdsaP256(signing_key.clone());
+        println!("{:?}", ecdsa);
+        assert_eq!(ecdsa.algorithm(), rustls::SignatureAlgorithm::ECDSA);
+
+        // Choose only a matching scheme.
+        assert!(ecdsa.choose_scheme(&[]).is_none());
+        assert!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_SHA1_Legacy,
+                    SignatureScheme::RSA_PKCS1_SHA256,
+                    SignatureScheme::RSA_PKCS1_SHA384,
+                    SignatureScheme::ECDSA_NISTP384_SHA384,
+                    SignatureScheme::RSA_PKCS1_SHA512,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::RSA_PSS_SHA256,
+                    SignatureScheme::RSA_PSS_SHA384,
+                    SignatureScheme::RSA_PSS_SHA512,
+                    SignatureScheme::ED25519,
+                    SignatureScheme::ED448,
+                    SignatureScheme::ML_DSA_44,
+                    SignatureScheme::ML_DSA_65,
+                    SignatureScheme::ML_DSA_87,
+                ])
+                .is_none()
+        );
+        assert_eq!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_NISTP384_SHA384,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::ECDSA_NISTP256_SHA256,
+                ])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::ECDSA_NISTP256_SHA256
+        );
+    }
+
+    #[test]
+    fn test_ecdsap384_signing_key() {
+        let signing_key = Arc::new(
+            ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(include_bytes!(
+                "../../graviola/src/high/ecdsa/secp384r1.pkcs8.der"
+            ))
+            .unwrap(),
+        );
+        let ecdsa = EcdsaP384(signing_key.clone());
+        println!("{:?}", ecdsa);
+        assert_eq!(ecdsa.algorithm(), rustls::SignatureAlgorithm::ECDSA);
+
+        // Choose only a matching scheme.
+        assert!(ecdsa.choose_scheme(&[]).is_none());
+        assert!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_SHA1_Legacy,
+                    SignatureScheme::RSA_PKCS1_SHA256,
+                    SignatureScheme::RSA_PKCS1_SHA384,
+                    SignatureScheme::ECDSA_NISTP256_SHA256,
+                    SignatureScheme::RSA_PKCS1_SHA512,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::RSA_PSS_SHA256,
+                    SignatureScheme::RSA_PSS_SHA384,
+                    SignatureScheme::RSA_PSS_SHA512,
+                    SignatureScheme::ED25519,
+                    SignatureScheme::ED448,
+                    SignatureScheme::ML_DSA_44,
+                    SignatureScheme::ML_DSA_65,
+                    SignatureScheme::ML_DSA_87,
+                ])
+                .is_none()
+        );
+        assert_eq!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_NISTP256_SHA256,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::ECDSA_NISTP384_SHA384,
+                ])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::ECDSA_NISTP384_SHA384
+        );
+    }
+
+    #[test]
+    fn test_ed25519_signing_key() {
+        let signing_key = Arc::new(Ed25519SigningKey::generate().unwrap());
+        let ed25519 = Ed25519(signing_key.clone());
+        assert_eq!(ed25519.algorithm(), rustls::SignatureAlgorithm::ED25519);
+        assert!(ed25519.choose_scheme(&[]).is_none());
+        assert_eq!(format!("{ed25519:?}"), "Ed25519 { .. }");
+    }
+}
