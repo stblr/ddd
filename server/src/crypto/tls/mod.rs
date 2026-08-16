@@ -12,9 +12,6 @@ pub mod kx;
 /// Supported cipher suites.
 pub mod suites;
 
-mod ticketer;
-pub use ticketer::Ticketer;
-
 /// This is a rustls [`CryptoProvider`] using cryptography from Graviola.
 ///
 /// This provides the same algorithms as the rustls *ring*-based

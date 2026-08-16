@@ -37,7 +37,7 @@ impl Context for Sha256Context {
     }
 
     fn update(&mut self, data: &[u8]) {
-        self.0.update(data);
+        self.0.update(data).unwrap();
     }
 }
 
@@ -77,7 +77,7 @@ impl Context for Sha384Context {
     }
 
     fn update(&mut self, data: &[u8]) {
-        self.0.update(data);
+        self.0.update(data).unwrap();
     }
 }
 

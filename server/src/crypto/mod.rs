@@ -11,7 +11,6 @@ pub mod session;
 pub mod x25519;
 
 #[allow(dead_code)]
-#[allow(unused)]
 mod tls;
 
 pub type Key = Sensitive<[u8; 32]>;

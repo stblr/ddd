@@ -20,11 +20,11 @@ struct Sha256HmacKey(HmacSha256);
 impl Key for Sha256HmacKey {
     fn sign_concat(&self, first: &[u8], middle: &[&[u8]], last: &[u8]) -> Tag {
         let mut ctx = self.0.clone();
-        ctx.update(first);
+        ctx.update(first).unwrap();
         for m in middle {
-            ctx.update(m);
+            ctx.update(m).unwrap();
         }
-        ctx.update(last);
+        ctx.update(last).unwrap();
         Tag::new(ctx.finalize().unwrap().unprotected_as_bytes())
     }
 
@@ -51,11 +51,11 @@ struct Sha384HmacKey(HmacSha384);
 impl Key for Sha384HmacKey {
     fn sign_concat(&self, first: &[u8], middle: &[&[u8]], last: &[u8]) -> Tag {
         let mut ctx = self.0.clone();
-        ctx.update(first);
+        ctx.update(first).unwrap();
         for m in middle {
-            ctx.update(m);
+            ctx.update(m).unwrap();
         }
-        ctx.update(last);
+        ctx.update(last).unwrap();
         Tag::new(ctx.finalize().unwrap().unprotected_as_bytes())
     }
 

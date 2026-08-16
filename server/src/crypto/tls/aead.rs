@@ -90,7 +90,7 @@ impl MessageEncrypter for ChaChaTls13Cipher {
         payload.extend_from_slice(&m.typ.to_array());
         let nonce = Nonce::new(&self.1, seq);
         let aad = make_tls13_aad(total_len);
-        let mut tag = [0u8; CHACHAPOLY1305_OVERHEAD];
+        let tag = [0u8; CHACHAPOLY1305_OVERHEAD];
         payload.extend_from_slice(&tag);
 
         chacha20poly1305::seal(
@@ -155,7 +155,7 @@ impl MessageEncrypter for ChaChaTls12Cipher {
         payload.extend_from_chunks(&m.payload);
         let nonce = Nonce::new(&self.1, seq);
         let aad = make_tls12_aad(seq, m.typ, m.version, m.payload.len());
-        let mut tag = [0u8; CHACHAPOLY1305_OVERHEAD];
+        let tag = [0u8; CHACHAPOLY1305_OVERHEAD];
         payload.extend_from_slice(&tag);
 
         chacha20poly1305::seal(

@@ -1,8 +1,6 @@
 use orion::hazardous::ecc::x25519::{self, PrivateKey, PublicKey};
-use rand::TryRng;
-use rand::rngs::SysRng;
 use rustls::{Error, NamedGroup, PeerMisbehaved};
-use rustls::crypto::{ActiveKeyExchange, GetRandomFailed, SharedSecret, SupportedKxGroup};
+use rustls::crypto::{ActiveKeyExchange, SharedSecret, SupportedKxGroup};
 use rustls::ffdhe_groups::FfdheGroup;
 
 mod hybrid;
