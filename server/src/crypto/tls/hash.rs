@@ -1,42 +1,39 @@
-use graviola::hashing::sha2;
-use rustls::crypto::hash;
+use orion::hazardous::hash::sha2::{sha256, sha384};
+use rustls::crypto::hash::{Context, Hash, HashAlgorithm, Output};
 
 pub struct Sha256;
 
-impl hash::Hash for Sha256 {
-    fn start(&self) -> Box<dyn hash::Context> {
-        Box::new(Sha256Context(sha2::Sha256Context::new()))
+impl Hash for Sha256 {
+    fn start(&self) -> Box<dyn Context> {
+        Box::new(Sha256Context(sha256::Sha256::new()))
     }
 
-    fn hash(&self, data: &[u8]) -> hash::Output {
-        let mut ctx = sha2::Sha256Context::new();
-        ctx.update(data);
-
-        hash::Output::new(ctx.finish().as_ref())
+    fn hash(&self, data: &[u8]) -> Output {
+        Output::new(sha256::Sha256::digest(data).unwrap().as_ref())
     }
 
-    fn algorithm(&self) -> hash::HashAlgorithm {
-        hash::HashAlgorithm::SHA256
+    fn algorithm(&self) -> HashAlgorithm {
+        HashAlgorithm::SHA256
     }
 
     fn output_len(&self) -> usize {
-        sha2::Sha256Context::OUTPUT_SZ
+        sha256::SHA256_OUTSIZE
     }
 }
 
-struct Sha256Context(sha2::Sha256Context);
+struct Sha256Context(sha256::Sha256);
 
-impl hash::Context for Sha256Context {
-    fn fork_finish(&self) -> hash::Output {
-        hash::Output::new(self.0.clone().finish().as_ref())
+impl Context for Sha256Context {
+    fn fork_finish(&self) -> Output {
+        Output::new(self.0.clone().finalize().unwrap().as_ref())
     }
 
-    fn fork(&self) -> Box<dyn hash::Context> {
+    fn fork(&self) -> Box<dyn Context> {
         Box::new(Self(self.0.clone()))
     }
 
-    fn finish(self: Box<Self>) -> hash::Output {
-        hash::Output::new(self.0.finish().as_ref())
+    fn finish(mut self: Box<Self>) -> Output {
+        Output::new(self.0.finalize().unwrap().as_ref())
     }
 
     fn update(&mut self, data: &[u8]) {
@@ -46,40 +43,37 @@ impl hash::Context for Sha256Context {
 
 pub struct Sha384;
 
-impl hash::Hash for Sha384 {
-    fn start(&self) -> Box<dyn hash::Context> {
-        Box::new(Sha384Context(sha2::Sha384Context::new()))
+impl Hash for Sha384 {
+    fn start(&self) -> Box<dyn Context> {
+        Box::new(Sha384Context(sha384::Sha384::new()))
     }
 
-    fn hash(&self, data: &[u8]) -> hash::Output {
-        let mut ctx = sha2::Sha384Context::new();
-        ctx.update(data);
-
-        hash::Output::new(ctx.finish().as_ref())
+    fn hash(&self, data: &[u8]) -> Output {
+        Output::new(sha384::Sha384::digest(data).unwrap().as_ref())
     }
 
-    fn algorithm(&self) -> hash::HashAlgorithm {
-        hash::HashAlgorithm::SHA384
+    fn algorithm(&self) -> HashAlgorithm {
+        HashAlgorithm::SHA384
     }
 
     fn output_len(&self) -> usize {
-        sha2::Sha384Context::OUTPUT_SZ
+        sha384::SHA384_OUTSIZE
     }
 }
 
-struct Sha384Context(sha2::Sha384Context);
+struct Sha384Context(sha384::Sha384);
 
-impl hash::Context for Sha384Context {
-    fn fork_finish(&self) -> hash::Output {
-        hash::Output::new(self.0.clone().finish().as_ref())
+impl Context for Sha384Context {
+    fn fork_finish(&self) -> Output {
+        Output::new(self.0.clone().finalize().unwrap().as_ref())
     }
 
-    fn fork(&self) -> Box<dyn hash::Context> {
+    fn fork(&self) -> Box<dyn Context> {
         Box::new(Self(self.0.clone()))
     }
 
-    fn finish(self: Box<Self>) -> hash::Output {
-        hash::Output::new(self.0.finish().as_ref())
+    fn finish(mut self: Box<Self>) -> Output {
+        Output::new(self.0.finalize().unwrap().as_ref())
     }
 
     fn update(&mut self, data: &[u8]) {
@@ -96,7 +90,7 @@ mod test {
     #[test]
     fn test_sha256() {
         let hash = Sha256;
-        assert_eq!(hash.algorithm(), hash::HashAlgorithm::SHA256);
+        assert_eq!(hash.algorithm(), HashAlgorithm::SHA256);
         assert_eq!(hash.output_len(), 32);
         let input = b"graviola";
         assert_eq!(hash.hash(input).as_ref(),
@@ -107,7 +101,7 @@ mod test {
     #[test]
     fn test_sha384() {
         let hash = Sha384;
-        assert_eq!(hash.algorithm(), hash::HashAlgorithm::SHA384);
+        assert_eq!(hash.algorithm(), HashAlgorithm::SHA384);
         assert_eq!(hash.output_len(), 48);
         let input = b"graviola";
         assert_eq!(hash.hash(input).as_ref(),
