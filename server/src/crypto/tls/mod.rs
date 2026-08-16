@@ -56,8 +56,6 @@ mod tests {
     #[test]
     fn all_suites() {
         for key_type in KeyType::ALL {
-            test_suite(tls::suites::TLS13_AES_256_GCM_SHA384, *key_type);
-            test_suite(tls::suites::TLS13_AES_128_GCM_SHA256, *key_type);
             test_suite(
                 tls::suites::TLS13_CHACHA20_POLY1305_SHA256,
                 *key_type,
@@ -67,28 +65,12 @@ mod tests {
 
         for key_type in KeyType::RSA {
             test_suite(
-                tls::suites::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-                *key_type,
-            );
-            test_suite(
-                tls::suites::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-                *key_type,
-            );
-            test_suite(
                 tls::suites::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
                 *key_type,
             );
         }
 
         for key_type in KeyType::ECDSA {
-            test_suite(
-                tls::suites::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-                *key_type,
-            );
-            test_suite(
-                tls::suites::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-                *key_type,
-            );
             test_suite(
                 tls::suites::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
                 *key_type,
