@@ -1,5 +1,6 @@
+use crrl::ed25519;
 use graviola::hashing;
-use graviola::signing::{ecdsa, eddsa, rsa};
+use graviola::signing::rsa;
 use rustls::SignatureScheme;
 use rustls::crypto::WebPkiSupportedAlgorithms;
 use rustls::pki_types::{
@@ -209,9 +210,9 @@ impl SignatureVerificationAlgorithm for Ed25519Verify {
         message: &[u8],
         signature: &[u8],
     ) -> Result<(), InvalidSignature> {
-        eddsa::Ed25519VerifyingKey::from_bytes(public_key)
-            .and_then(|public_key| public_key.verify(signature, message))
-            .map_err(|_| InvalidSignature)
+        ed25519::PublicKey::decode(public_key)
+            .and_then(|public_key| public_key.verify_raw(signature, message).then_some(()))
+            .ok_or(InvalidSignature)
     }
 }
 

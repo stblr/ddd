@@ -9,6 +9,7 @@ anyhow = "1.0.102"
 arc-swap = "1.9.1"
 bpaf = "0.9.26"
 cini = "1.0.0"
+crrl = { git = "https://github.com/pornin/crrl", rev = "4cc7cbbe8796ee8d459b815d81318603279879e4" }
 graviola = "0.4.1"
 heapless = "0.9.3"
 jiff = "0.2.28"
