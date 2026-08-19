@@ -1,6 +1,6 @@
 use crrl::ed25519;
 use graviola::hashing;
-use graviola::signing::rsa;
+use graviola::signing::{ecdsa, rsa};
 use rustls::SignatureScheme;
 use rustls::crypto::WebPkiSupportedAlgorithms;
 use rustls::pki_types::{

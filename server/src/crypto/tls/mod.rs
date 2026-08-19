@@ -1,6 +1,7 @@
 use rustls::crypto::CryptoProvider;
 
 mod aead;
+mod ecdsa;
 mod hash;
 mod hmac;
 mod sign;
