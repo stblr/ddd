@@ -34,11 +34,6 @@ fn asn1_to_raw<'a>(
     // 127 bytes each (signed encoding) so the resulting raw signature will have length at most 254
     // bytes.
 
-    let asn1_len = asn1.len();
-    if asn1_len < 8 {
-        return Err(Asn1ToRawError);
-    }
-
     // First byte is SEQUENCE tag.
     if asn1.split_off_first() != Some(&0x30) {
         return Err(Asn1ToRawError);
