@@ -29,6 +29,7 @@ pub struct Worker {
     file_name_buf: String,
     tmp_path_buf: PathBuf,
     path_buf: PathBuf,
+    website_race_sender: SyncSender<Race>,
     webhook_race_sender: SyncSender<Race>,
 }
 
@@ -36,6 +37,7 @@ impl Worker {
     pub fn new(
         batch_receiver: Receiver<Batch>,
         init: Init,
+        website_race_sender: SyncSender<Race>,
         webhook_race_sender: SyncSender<Race>,
     ) -> Self {
         Self {
@@ -51,6 +53,7 @@ impl Worker {
             file_name_buf: String::new(),
             tmp_path_buf: PathBuf::new(),
             path_buf: PathBuf::new(),
+            website_race_sender,
             webhook_race_sender,
         }
     }
@@ -58,12 +61,17 @@ impl Worker {
     pub fn run(mut self) -> ! {
         loop {
             let mut batch = self.batch_receiver.recv().unwrap();
+
             for player in &batch.players {
                 if let Err(e) = self.write_player(player) {
                     error!("{e}");
                 }
             }
             if let Err(e) = self.write_race(&mut batch.race) {
+                error!("{e}");
+            }
+
+            if let Err(e) = self.website_race_sender.try_send(batch.race.clone()) {
                 error!("{e}");
             }
             if let Err(e) = self.webhook_race_sender.try_send(batch.race) {

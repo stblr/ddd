@@ -37,6 +37,7 @@ pub mod storage;
 pub mod update;
 mod updater;
 mod webhook;
+mod website;
 mod weight;
 
 type BufferSender = SyncSender<Buffer>;

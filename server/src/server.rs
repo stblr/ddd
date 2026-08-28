@@ -22,6 +22,7 @@ use crate::storage::{Storage, Worker as StorageWorker};
 use crate::update::SharedUpdate;
 use crate::updater::Updater;
 use crate::webhook::Worker as WebhookWorker;
+use crate::website::Worker as WebsiteWorker;
 
 pub fn spawn(
     options: Options,
@@ -52,12 +53,17 @@ pub fn spawn(
     trace!("Next room number: {}", storage_init.room_number);
     trace!("Next race number: {}", storage_init.race_number);
 
+    let (website_race_sender, website_race_receiver) =
+        mpsc::sync_channel(2 * config.load().max_rooms_per_frame_rate);
+    let website_worker = WebsiteWorker::new(website_race_receiver);
+    Builder::new().name("website".to_owned()).spawn(|| website_worker.run())?;
+
     let (webhook_race_sender, webhook_race_receiver) =
         mpsc::sync_channel(2 * config.load().max_rooms_per_frame_rate);
     let webhook_worker = WebhookWorker::new(courses.clone(), webhook_race_receiver);
     Builder::new().name("webhook".to_owned()).spawn(|| webhook_worker.run())?;
 
-    let storage_worker = StorageWorker::new(batch_receiver, storage_init, webhook_race_sender);
+    let storage_worker = StorageWorker::new(batch_receiver, storage_init, website_race_sender, webhook_race_sender);
     Builder::new().name("storage".to_owned()).spawn(move || storage_worker.run())?;
 
     let message_senders: Result<_> = senders
