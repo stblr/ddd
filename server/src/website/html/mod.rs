@@ -1,6 +1,7 @@
 use std::fmt::{Display, Error, Write};
 use std::result;
 
+#[must_use]
 pub struct Element<'a, W: Write> {
     writer: &'a mut W,
     indent: usize,
@@ -35,6 +36,7 @@ impl<W: Write> Drop for Element<'_, W> {
     fn drop(&mut self) {}
 }
 
+#[must_use]
 pub struct Attribute<'a, W: Write> {
     writer: &'a mut W,
 }
@@ -56,6 +58,7 @@ impl<W: Write> Drop for Attribute<'_, W> {
     fn drop(&mut self) {}
 }
 
+#[must_use]
 pub struct Children<'a, W: Write> {
     parent: Element<'a, W>,
 }

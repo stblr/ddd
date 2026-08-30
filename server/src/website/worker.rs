@@ -41,7 +41,7 @@ impl Worker {
         let mut table = body.element("table")?.children()?;
         let mut tr = table.element("tr")?.children()?;
         tr.element("th")?.content("R")?;
-        tr.element("th")?.content("P")?;
+        tr.element("th")?.content("Players")?;
         //tr.element("th")?.content("Combo")?;
         tr.element("th")?.content("Time")?;
         tr.element("th")?.content("Points")?;
@@ -51,7 +51,7 @@ impl Worker {
         tr.element("td")?.content("AAA BBB")?;
         //tr.element("td")?.content("Petey Piranha<wbr>King Boo<wbr>Parade Kart")?;
         tr.element("td")?.content("00:12:829")?;
-        tr.element("td")?.content("+999&nbsp;9999")?;
+        tr.element("td")?.content("+999 9999")?;
         tr.finish()?;
         table.finish()?;
         body.finish()?;
