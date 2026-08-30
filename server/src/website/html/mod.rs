@@ -27,8 +27,12 @@ impl<'a, W: Write> Element<'a, W> {
 
     pub fn children(self) -> Result<Children<'a, W>> {
         write!(self.writer, ">")?;
-        Ok(Children::new(self.writer, self.indent, self.tag))
+        Ok(Children::new(self))
     }
+}
+
+impl<W: Write> Drop for Element<'_, W> {
+    fn drop(&mut self) {}
 }
 
 pub struct Attribute<'a, W: Write> {
@@ -48,39 +52,45 @@ impl<'a, W: Write> Attribute<'a, W> {
     }
 }
 
+impl<W: Write> Drop for Attribute<'_, W> {
+    fn drop(&mut self) {}
+}
+
 pub struct Children<'a, W: Write> {
-    writer: &'a mut W,
-    indent: usize,
-    tag: &'static str,
+    parent: Element<'a, W>,
 }
 
 impl<'a, W: Write> Children<'a, W> {
-    fn new(writer: &'a mut W, indent: usize, tag: &'static str) -> Self {
-        Self { writer, indent, tag }
+    fn new(parent: Element<'a, W>) -> Self {
+        Self { parent }
     }
 
     pub fn element(&mut self, tag: &'static str) -> Result<Element<'_, W>> {
-        self.line(self.indent + 1)?;
-        Element::new(self.writer, self.indent + 1, tag)
+        self.line(self.parent.indent + 1)?;
+        Element::new(self.parent.writer, self.parent.indent + 1, tag)
     }
 
     fn content(&mut self, content: impl Display) -> Result<()> {
-        self.line(self.indent + 1)?;
-        write!(self.writer, "{content}")
+        self.line(self.parent.indent + 1)?;
+        write!(self.parent.writer, "{content}")
     }
 
     pub fn finish(mut self) -> Result<()> {
-        self.line(self.indent)?;
-        write!(self.writer, "</{}>", self.tag)
+        self.line(self.parent.indent)?;
+        write!(self.parent.writer, "</{}>", self.parent.tag)
     }
 
     fn line(&mut self, indent: usize) -> Result<()> {
-        writeln!(self.writer)?;
+        writeln!(self.parent.writer)?;
         for _ in 0..indent {
-            write!(self.writer, "    ")?;
+            write!(self.parent.writer, "    ")?;
         }
         Ok(())
     }
+}
+
+impl<W: Write> Drop for Children<'_, W> {
+    fn drop(&mut self) {}
 }
 
 pub type Result<T> = result::Result<T, Error>;
