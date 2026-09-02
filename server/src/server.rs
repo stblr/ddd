@@ -63,7 +63,8 @@ pub fn spawn(
     let webhook_worker = WebhookWorker::new(courses.clone(), webhook_race_receiver);
     Builder::new().name("webhook".to_owned()).spawn(|| webhook_worker.run())?;
 
-    let storage_worker = StorageWorker::new(batch_receiver, storage_init, website_race_sender, webhook_race_sender);
+    let storage_worker =
+        StorageWorker::new(batch_receiver, storage_init, website_race_sender, webhook_race_sender);
     Builder::new().name("storage".to_owned()).spawn(move || storage_worker.run())?;
 
     let message_senders: Result<_> = senders
