@@ -65,8 +65,25 @@ td:last-child {
     border-radius: 0 0.5rem 0.5rem 0;
 }
 
-td:nth-child(3), td:nth-child(4), td:nth-child(5) {
+td:nth-child(3),
+td:nth-child(4),
+td:nth-child(5),
+td:nth-child(9),
+td:nth-child(10),
+td:nth-child(11) {
     text-align: right;
+}
+
+td[title] {
+    text-decoration: underline;
+}
+
+td[title]:hover {
+    cursor: help;
+}
+
+td[title]:active:before {
+    content: attr(title) ": ";
 }
 
 a {

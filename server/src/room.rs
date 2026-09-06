@@ -21,6 +21,7 @@ use crate::item;
 use crate::kart::Kart;
 use crate::mmr;
 use crate::pack::Pack;
+use crate::race_client_stats::RaceClientStats;
 use crate::results;
 use crate::storage::race;
 use crate::storage::{Player, Race, Storage};
@@ -590,8 +591,14 @@ impl Room {
 
     pub fn set_race_state(&mut self, client_pk: &PublicKey, race: ClientStateRace) -> Result<()> {
         anyhow::ensure!(self.has_race_state());
-        let ClientStateRace { frame: client_frame, karts: mut client_karts, item_counts, .. } =
-            race;
+        let ClientStateRace {
+            frame: client_frame,
+            karts: mut client_karts,
+            item_counts,
+            delayed_frames,
+            latency,
+            stability,
+        } = race;
         anyhow::ensure!(client_frame >= MIN_CLIENT_FRAME);
         let kart_indices: heapless::Vec<_, MAX_CLIENT_KART_COUNT> = self
             .karts
@@ -601,8 +608,15 @@ impl Room {
             .map(|(i, _)| i)
             .collect();
         anyhow::ensure!(client_karts.len() == kart_indices.len());
-        let State::Race { poll_state, inputs, karts, states, lightning_available_frame, .. } =
-            &mut self.state
+        let State::Race {
+            poll_state,
+            inputs,
+            karts,
+            states,
+            lightning_available_frame,
+            client_stats,
+            ..
+        } = &mut self.state
         else {
             return Ok(());
         };
@@ -652,6 +666,15 @@ impl Room {
         }
         for item_count in &item_counts {
             anyhow::ensure!(*item_count <= 64);
+        }
+        if !client_karts.is_empty() {
+            let client_stats = match client_stats.entry(*client_pk) {
+                linear_map::Entry::Occupied(o) => Ok(o.into_mut()),
+                linear_map::Entry::Vacant(v) => v.insert(RaceClientStats::default()),
+            };
+            if let Ok(client_stats) = client_stats {
+                client_stats.update(delayed_frames, latency, stability);
+            }
         }
         for (mut client_kart, kart_index) in client_karts.into_iter().zip(kart_indices()) {
             let client_inputs = client_kart.inputs;
@@ -875,6 +898,7 @@ impl Room {
                 states,
                 end_frame,
                 results,
+                client_stats,
                 ..
             } => {
                 let frame = states.len() as u16;
@@ -944,6 +968,8 @@ impl Room {
                         let result_index =
                             results.iter().position(|kart| kart.kart_index == i as u8).unwrap();
                         let result = &results[result_index];
+                        let client_stats =
+                            client_stats.get(kart.client_pk()).copied().unwrap_or_default();
                         race::Kart {
                             client_pk: *kart.client_pk(),
                             players,
@@ -956,6 +982,9 @@ impl Room {
                             result_index: result_index as u8,
                             result_time: result.result_time,
                             result_points: result.points,
+                            delayed_frames: client_stats.delayed_frames(),
+                            latency: client_stats.latency(),
+                            stability: client_stats.stability(),
                         }
                     };
 
@@ -1071,6 +1100,7 @@ enum State {
         lightning_available_frame: Option<u16>,
         end_frame: u16,
         results: heapless::Vec<ServerResult, MAX_ROOM_KART_COUNT>,
+        client_stats: heapless::LinearMap<PublicKey, RaceClientStats, MAX_ROOM_KART_COUNT>,
     },
 }
 
@@ -1142,6 +1172,7 @@ impl State {
             lightning_available_frame: Some(MIN_CLIENT_FRAME + 30 * 60),
             end_frame: MIN_CLIENT_FRAME + 15 * 60 * 60,
             results: heapless::Vec::new(),
+            client_stats: LinearMap::new(),
         }
     }
 }

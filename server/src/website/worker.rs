@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
@@ -110,7 +110,7 @@ impl Worker {
             let point_diff = i32::from(kart.result_points) - i32::from(kart.points);
             tr.element("td")?.content(format_args!("{point_diff:+}"))?;
 
-            tr.element("td")?.content(kart.result_points)?;
+            tr.element("td")?.content(format_args!("{} pts", kart.result_points))?;
 
             for character in kart.characters {
                 let mut td = tr.element("td")?.children()?;
@@ -125,6 +125,20 @@ impl Worker {
             a.attribute("href")?.value(format_args!("kart/{}", kart.kart as u8))?;
             a.content(kart.kart)?;
             td.finish()?;
+
+            let mut stat = |title, stat, suffix| -> Result<()> {
+                let mut td = tr.element("td")?;
+                td.attribute("title")?.value(title)?;
+                let stat = fmt::from_fn(move |f| match stat {
+                    Some(stat) => write!(f, "{stat}{suffix}"),
+                    None => write!(f, "?"),
+                });
+                td.content(stat)?;
+                Ok(())
+            };
+            stat("Delayed frames", kart.delayed_frames, "")?;
+            stat("Latency", kart.latency, " f")?;
+            stat("Stability", kart.stability, "/64")?;
 
             tr.finish()?;
         }

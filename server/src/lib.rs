@@ -25,6 +25,7 @@ mod mmr;
 pub mod options;
 mod pack;
 mod player;
+mod race_client_stats;
 mod receiver;
 mod results;
 mod room;

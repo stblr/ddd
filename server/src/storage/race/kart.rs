@@ -19,4 +19,10 @@ pub struct Kart {
     pub result_index: u8,
     pub result_time: u32,
     pub result_points: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delayed_frames: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latency: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stability: Option<u64>,
 }
