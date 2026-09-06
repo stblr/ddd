@@ -128,6 +128,34 @@ impl CharacterId {
     }
 }
 
+impl Display for CharacterId {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let character = match self {
+            Self::BabyMario => "Baby Mario",
+            Self::BabyLuigi => "Baby Luigi",
+            Self::Patapata => "Paratroopa",
+            Self::Nokonoko => "Koopa",
+            Self::Peach => "Peach",
+            Self::Daisy => "Daisy",
+            Self::Mario => "Mario",
+            Self::Luigi => "Luigi",
+            Self::Wario => "Wario",
+            Self::Waluigi => "Waluigi",
+            Self::Yoshi => "Yoshi",
+            Self::Catherine => "Birdo",
+            Self::Donkey => "Donkey Kong",
+            Self::Diddy => "Diddy Kong",
+            Self::Koopa => "Bowser",
+            Self::KoopaJr => "Bowser Jr",
+            Self::Kinopio => "Toad",
+            Self::Kinopico => "Toadette",
+            Self::Teresa => "King Boo",
+            Self::Pakkun => "Petey Piranha",
+        };
+        write!(f, "{character}")
+    }
+}
+
 impl Distribution<CharacterId> for StandardUniform {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> CharacterId {
         match rng.random_range(0..=19) {
@@ -191,6 +219,35 @@ impl KartId {
         let character_weights: [_; 2] = array::from_fn(|i| character_ids[i].weight());
         let max_character_weight = character_weights[0].max(character_weights[1]);
         max_character_weight == weight
+    }
+}
+
+impl Display for KartId {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let kart = match self {
+            Self::Mario => "Red Fire",
+            Self::Donkey => "DK Jumbo",
+            Self::Yoshi => "Turbo Yoshi",
+            Self::Nokonoko => "Koopa Dasher",
+            Self::Peach => "Heart Coach",
+            Self::BabyMario => "Goo-Goo Buggy",
+            Self::Wario => "Wario Car",
+            Self::Koopa => "Koopa King",
+            Self::Luigi => "Green Fire",
+            Self::Diddy => "Barrel Train",
+            Self::Catherine => "Turbo Birdo",
+            Self::Patapata => "Para-Wing",
+            Self::Daisy => "Bloom Coach",
+            Self::BabyLuigi => "Rattle Buggy",
+            Self::Waluigi => "Waluigi Racer",
+            Self::KoopaJr => "Bullet Blaster",
+            Self::Kinopio => "Toad Kart",
+            Self::Kinopico => "Toadette Kart",
+            Self::Teresa => "Boo Pipes",
+            Self::Pakkun => "Piranha Pipes",
+            Self::Extra => "Parade Kart",
+        };
+        write!(f, "{kart}")
     }
 }
 

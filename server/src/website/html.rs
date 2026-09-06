@@ -49,7 +49,7 @@ impl<'a, W: Write> Attribute<'a, W> {
 
     pub fn empty(self) {}
 
-    pub fn value(self, value: &str) -> Result<()> {
+    pub fn value(self, value: impl Display) -> Result<()> {
         write!(self.writer, "=\"{value}\"")
     }
 }
@@ -64,7 +64,7 @@ pub struct Children<'a, W: Write> {
 }
 
 impl<'a, W: Write> Children<'a, W> {
-    fn new(parent: Element<'a, W>) -> Self {
+    const fn new(parent: Element<'a, W>) -> Self {
         Self { parent }
     }
 

@@ -33,7 +33,7 @@ pub fn spawn(
     shards: usize,
     senders: impl Iterator<Item = Result<impl Sender>>,
     receiver: impl Receiver,
-    storage_path: impl AsRef<Path>,
+    base_path: impl AsRef<Path>,
 ) -> Result<()> {
     let buffers_per_shard = config.load().buffers_per_shard;
     let buffers = shards * buffers_per_shard;
@@ -47,7 +47,7 @@ pub fn spawn(
 
     let (batch_sender, batch_receiver) =
         mpsc::sync_channel(2 * config.load().max_rooms_per_frame_rate);
-    let (storage, storage_init) = Storage::load(batch_sender, storage_path)?;
+    let (storage, storage_init) = Storage::load(batch_sender, &base_path)?;
     let storage = Arc::new(storage);
     trace!("Next player number: {}", storage_init.player_number);
     trace!("Next room number: {}", storage_init.room_number);
@@ -55,7 +55,7 @@ pub fn spawn(
 
     let (website_race_sender, website_race_receiver) =
         mpsc::sync_channel(2 * config.load().max_rooms_per_frame_rate);
-    let website_worker = WebsiteWorker::new(website_race_receiver);
+    let website_worker = WebsiteWorker::new(website_race_receiver, &base_path)?;
     Builder::new().name("website".to_owned()).spawn(|| website_worker.run())?;
 
     let (webhook_race_sender, webhook_race_receiver) =
