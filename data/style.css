@@ -1,5 +1,17 @@
 body {
     font-family: system-ui, sans-serif;
+    max-width: 60rem;
+    margin: auto;
+    padding: 0 0.5rem;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li + li {
+    margin-top: 0.5rem;
 }
 
 table {
@@ -68,9 +80,9 @@ td:last-child {
 td:nth-child(3),
 td:nth-child(4),
 td:nth-child(5),
-td:nth-child(9),
 td:nth-child(10),
-td:nth-child(11) {
+td:nth-child(11),
+td:nth-child(12) {
     text-align: right;
 }
 

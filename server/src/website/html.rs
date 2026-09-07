@@ -73,7 +73,7 @@ impl<'a, W: Write> Children<'a, W> {
         Element::new(self.parent.writer, self.parent.indent + 1, tag)
     }
 
-    fn content(&mut self, content: impl Display) -> Result<()> {
+    pub fn content(&mut self, content: impl Display) -> Result<()> {
         self.line(self.parent.indent + 1)?;
         write!(self.parent.writer, "{content}")
     }

@@ -52,6 +52,22 @@ impl ModeIndex {
     }
 }
 
+impl Display for ModeIndex {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let mode = match self {
+            Self::Versus => "\u{1f3c1}",
+            Self::Balloon => "\u{1f388}",
+            Self::Escape => "\u{1f31e}",
+            Self::Bomb => "\u{1f4a3}",
+            Self::TimeAttack => "\u{23f1}\u{fe0f}",
+        };
+
+        let name = if self.is_race() { "Race" } else { "Battle" };
+
+        write!(f, "{mode} {name}")
+    }
+}
+
 impl Display for RoomOptionEngineSize {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let engine_size = match self {

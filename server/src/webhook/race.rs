@@ -115,17 +115,7 @@ struct Title {
 
 impl Display for Title {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let mode = match self.mode {
-            ModeIndex::Versus => "\u{1f3c1}",
-            ModeIndex::Balloon => "\u{1f388}",
-            ModeIndex::Escape => "\u{1f31e}",
-            ModeIndex::Bomb => "\u{1f4a3}",
-            ModeIndex::TimeAttack => "\u{23f1}\u{fe0f}",
-        };
-
-        let name = if self.mode.is_race() { "Race" } else { "Battle" };
-
-        write!(f, "{mode} {name} #{}", self.race_number)
+        write!(f, "{} #{}", self.mode, self.race_number)
     }
 }
 
@@ -278,7 +268,9 @@ impl Display for FooterText {
             write!(f, " · {item_mode}")?;
         }
 
-        if let Some(lap_count) = self.lap_count {
+        if let Some(lap_count) = self.lap_count
+            && lap_count != 0
+        {
             let name = if lap_count == 1 { "Lap" } else { "Laps" };
             write!(f, " · {lap_count} {name}")?;
         }
