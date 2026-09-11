@@ -9,12 +9,15 @@ use std::sync::mpsc::SyncSender;
 
 use anyhow::{Context, Result, anyhow};
 use heapless::Vec;
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 use scc::HashMap;
 
 use crate::dir_entry;
 use crate::formats::online::*;
 use crate::storage::batch::Batch;
 use crate::storage::init::Init;
+use crate::website::Rankings;
 
 pub mod race;
 
@@ -30,13 +33,18 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn load(batch_sender: SyncSender<Batch>, path: impl AsRef<Path>) -> Result<(Self, Init)> {
+    pub fn load(
+        batch_sender: SyncSender<Batch>,
+        path: impl AsRef<Path>,
+    ) -> Result<(Self, Init, Rankings)> {
         let path = path.as_ref();
 
         let tmp_path = path.join("tmp");
         fs::create_dir_all(&tmp_path)?;
 
         let mut init = Init::new(path.to_owned(), tmp_path);
+        let mut rankings = Rankings::default();
+        let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
 
         let players_path = path.join("players");
         fs::create_dir_all(&players_path)?;
@@ -65,9 +73,11 @@ impl Storage {
             let room_number = race.room_number;
             let next_room_number = room_number.checked_add(1).context("too many rooms")?;
             init.room_number = init.room_number.max(next_room_number);
+
+            rankings.increment(now, &race);
         }
 
-        Ok((Self { batch_sender, players }, init))
+        Ok((Self { batch_sender, players }, init, rankings))
     }
 
     pub fn read_player<R>(&self, player_id: &PlayerId, f: impl Fn(Option<&Player>) -> R) -> R {

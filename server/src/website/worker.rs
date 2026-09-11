@@ -1,21 +1,29 @@
-use std::fmt::{self, Write};
+use std::fmt::{self, Display, Write};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use arc_swap::Cache;
-use log::error;
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 
 use crate::base64;
 use crate::courses::{Courses, SharedCourses};
+use crate::result_ext::ResultExt;
 use crate::storage::Race;
-use crate::website::html::Element;
+use crate::website::Rankings;
+use crate::website::html::{Children, Element};
+use crate::website::rank::Rank;
+use crate::website::ranking::Ranking;
 
 pub struct Worker {
     courses: SharedCourses,
     race_receiver: Receiver<Race>,
+    rankings: Rankings,
     races_path: PathBuf,
+    rankings_path: PathBuf,
     page: String,
     file_name_buf: String,
     path_buf: PathBuf,
@@ -25,6 +33,7 @@ impl Worker {
     pub fn new(
         courses: SharedCourses,
         race_receiver: Receiver<Race>,
+        rankings: Rankings,
         path: impl AsRef<Path>,
     ) -> Result<Self> {
         let path = path.as_ref().join("website");
@@ -32,10 +41,15 @@ impl Worker {
         let races_path = path.join("races");
         fs::create_dir_all(&races_path)?;
 
+        let rankings_path = path.join("rankings");
+        fs::create_dir_all(&rankings_path)?;
+
         Ok(Self {
             courses,
             race_receiver,
+            rankings,
             races_path,
+            rankings_path,
             page: String::new(),
             file_name_buf: String::new(),
             path_buf: PathBuf::new(),
@@ -44,12 +58,68 @@ impl Worker {
 
     pub fn run(mut self) -> ! {
         let mut courses = Cache::new(self.courses.clone());
+        let mut next_tick = Instant::now();
         loop {
             let courses = courses.load();
-            let mut race = self.race_receiver.recv().unwrap();
-            if let Err(e) = self.write_race(courses, &mut race) {
-                error!("{e}");
+            let now = Instant::now();
+            if let Some(duration) = next_tick.checked_duration_since(now)
+                && !duration.is_zero()
+            {
+                let mut race = match self.race_receiver.recv_timeout(duration) {
+                    Err(RecvTimeoutError::Timeout) => continue,
+                    race => race.unwrap(),
+                };
+                self.write_race(courses, &mut race).log_err();
+                continue;
             }
+
+            let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
+            self.rankings.update(now);
+            self.write_ranking(
+                "Players",
+                "Matches",
+                Rankings::player_races,
+                |player, td| td.content(player),
+                "players",
+            )
+            .log_err();
+            self.write_ranking(
+                "Course",
+                "Matches",
+                Rankings::courses,
+                |course, td| {
+                    let mut td = td.children()?;
+                    write_course(courses, course, &mut td)?;
+                    td.finish()
+                },
+                "courses",
+            )
+            .log_err();
+            self.write_ranking(
+                "Character",
+                "Picks",
+                Rankings::characters,
+                |character, td| td.content(character),
+                "characters",
+            )
+            .log_err();
+            self.write_ranking(
+                "Kart",
+                "Picks",
+                Rankings::karts,
+                |kart, td| td.content(kart),
+                "karts",
+            )
+            .log_err();
+            self.write_ranking(
+                "Combo",
+                "Picks",
+                Rankings::combos,
+                |combo, td| td.content(combo),
+                "combos",
+            )
+            .log_err();
+            next_tick += Duration::from_secs(60);
         }
     }
 
@@ -88,13 +158,7 @@ impl Worker {
 
         let mut li = ul.element("li")?.children()?;
         li.content("Course: ")?;
-        let mut a = li.element("a")?;
-        let course = base64::display(&race.course_hash);
-        a.attribute("href")?.value(format_args!("../courses/{course}"))?;
-        match courses.get(&race.course_hash) {
-            Some(course) => a.content(course)?,
-            None => a.content(course)?,
-        }
+        write_course(courses, &race.course_hash, &mut li)?;
         li.finish()?;
 
         let mut li = ul.element("li")?.children()?;
@@ -144,17 +208,7 @@ impl Worker {
             tr.attribute("class")?.value(format_args!("team-{}", kart.team))?;
             let mut tr = tr.children()?;
 
-            let rank = match rank {
-                0 => "1st",
-                1 => "2nd",
-                2 => "3rd",
-                3 => "4th",
-                4 => "5th",
-                5 => "6th",
-                6 => "7th",
-                _ => "8th",
-            };
-            tr.element("td")?.content(rank)?;
+            tr.element("td")?.content(Rank(rank))?;
 
             for player in &kart.players {
                 let mut td = tr.element("td")?;
@@ -218,7 +272,6 @@ impl Worker {
         table.finish()?;
         body.finish()?;
         html.finish()?;
-        eprintln!("{}", self.page);
 
         self.file_name_buf.clear();
         write!(self.file_name_buf, "{}", race.number)?;
@@ -229,5 +282,67 @@ impl Worker {
         fs::write(&self.path_buf, &self.page)?;
 
         Ok(())
+    }
+
+    fn write_ranking<T, C: Display>(
+        &mut self,
+        name: &str,
+        counter_name: &str,
+        ranking: impl Fn(&Rankings) -> &Ranking<T, C>,
+        write_value: impl Fn(&T, Element<String>) -> fmt::Result,
+        file_name: &str,
+    ) -> Result<()> {
+        "<!doctype html>\n".clone_into(&mut self.page);
+        let mut html = Element::new(&mut self.page, 0, "html")?;
+        html.attribute("lang")?.value("en-US")?;
+        let mut html = html.children()?;
+        let mut head = html.element("head")?.children()?;
+        let mut meta = head.element("meta")?;
+        meta.attribute("name")?.value("viewport")?;
+        meta.attribute("content")?.value("width=device-width, initial-scale=1")?;
+        meta.empty()?;
+        let mut meta = head.element("meta")?;
+        meta.attribute("name")?.value("color-scheme")?;
+        meta.attribute("content")?.value("light dark")?;
+        meta.empty()?;
+        let name = format_args!("{name} Rankings");
+        let title = format_args!("{name} · Double Dash Deluxe");
+        head.element("title")?.content(title)?;
+        let mut link = head.element("link")?;
+        link.attribute("rel")?.value("stylesheet")?;
+        link.attribute("href")?.value("../../../data/style.css")?;
+        link.empty()?;
+        head.finish()?;
+        let mut body = html.element("body")?.children()?;
+        body.element("h1")?.content(name)?;
+        body.element("h2")?.content(counter_name)?;
+        let mut div = body.element("div")?;
+        div.attribute("class")?.value("rankings")?;
+        let mut div = div.children()?;
+        ranking(&self.rankings).write(write_value, &mut div)?;
+        div.finish()?;
+        body.finish()?;
+        html.finish()?;
+
+        self.rankings_path.clone_into(&mut self.path_buf);
+        self.path_buf.push(file_name);
+
+        fs::write(&self.path_buf, &self.page)?;
+
+        Ok(())
+    }
+}
+
+fn write_course<W: Write>(
+    courses: &Courses,
+    course_hash: &[u8; 32],
+    parent: &mut Children<W>,
+) -> fmt::Result {
+    let mut a = parent.element("a")?;
+    let course = base64::display(course_hash);
+    a.attribute("href")?.value(format_args!("../courses/{course}"))?;
+    match courses.get(course_hash) {
+        Some(course) => a.content(course),
+        None => a.content(format_args!("{course:.12}...")),
     }
 }

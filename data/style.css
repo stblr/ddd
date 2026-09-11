@@ -14,11 +14,56 @@ li + li {
     margin-top: 0.5rem;
 }
 
-table {
+td {
+    padding: 0.25rem 0.5rem;
+}
+
+td[title] {
+    text-decoration: underline;
+}
+
+td[title]:hover {
+    cursor: help;
+}
+
+td[title]:active:before {
+    content: attr(title) ": ";
+}
+
+a {
+    color: inherit;
+}
+
+#players {
     border-spacing: 0 0.25rem;
     display: block;
     overflow: auto;
     white-space: nowrap;
+}
+
+#players td {
+    border-style: solid;
+    border-width: 0.125rem 0 0.125rem 0;
+    padding: 0.25rem 0.5rem;
+}
+
+#players td:first-child {
+    border-left-width: 0.125rem;
+    border-radius: 0.5rem 0 0 0.5rem;
+}
+
+#players td:last-child {
+    border-right-width: 0.125rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+}
+
+#players td:nth-child(3),
+#players td:nth-child(4),
+#players td:nth-child(5),
+#players td:nth-child(10),
+#players td:nth-child(11),
+#players td:nth-child(12) {
+    text-align: right;
 }
 
 .team-0 td {
@@ -61,43 +106,24 @@ table {
     border-color: #9d4cff99;
 }
 
-td {
-    border-style: solid;
-    border-width: 0.125rem 0 0.125rem 0;
-    padding: 0.25rem 0.5rem;
+.rankings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
 }
 
-td:first-child {
-    border-left-width: 0.125rem;
-    border-radius: 0.5rem 0 0 0.5rem;
+.ranking {
+    background-color: #00000011;
+    border: 0.125rem solid #00000022;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.25rem;
 }
 
-td:last-child {
-    border-right-width: 0.125rem;
-    border-radius: 0 0.5rem 0.5rem 0;
+.ranking h3 {
+    margin: 0.25rem 0.5rem 0.5rem 0.5rem;
 }
 
-td:nth-child(3),
-td:nth-child(4),
-td:nth-child(5),
-td:nth-child(10),
-td:nth-child(11),
-td:nth-child(12) {
+.ranking td:nth-child(1),
+.ranking td:nth-child(3) {
     text-align: right;
-}
-
-td[title] {
-    text-decoration: underline;
-}
-
-td[title]:hover {
-    cursor: help;
-}
-
-td[title]:active:before {
-    content: attr(title) ": ";
-}
-
-a {
-    color: inherit;
 }

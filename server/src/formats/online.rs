@@ -9,6 +9,7 @@ use std::fmt::{self, Display, Formatter};
 use rand::distr::{Distribution, StandardUniform};
 use rand::{Rng, RngExt};
 
+use crate::bounds::Bounds;
 use crate::frequency::Frequency;
 use crate::weight::Weight;
 
@@ -162,7 +163,7 @@ impl Display for CharacterId {
             Self::Donkey => "Donkey Kong",
             Self::Diddy => "Diddy Kong",
             Self::Koopa => "Bowser",
-            Self::KoopaJr => "Bowser Jr",
+            Self::KoopaJr => "Bowser Jr.",
             Self::Kinopio => "Toad",
             Self::Kinopico => "Toadette",
             Self::Teresa => "King Boo",
@@ -197,6 +198,11 @@ impl Distribution<CharacterId> for StandardUniform {
             _ => CharacterId::Pakkun,
         }
     }
+}
+
+impl Bounds for CharacterId {
+    const MIN: Self = Self::BabyMario;
+    const MAX: Self = Self::Pakkun;
 }
 
 impl KartId {
@@ -293,6 +299,11 @@ impl Distribution<KartId> for StandardUniform {
             _ => KartId::Extra,
         }
     }
+}
+
+impl Bounds for KartId {
+    const MIN: Self = Self::Mario;
+    const MAX: Self = Self::Extra;
 }
 
 impl ItemId {
