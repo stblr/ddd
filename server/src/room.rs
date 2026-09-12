@@ -993,6 +993,7 @@ impl Room {
                         .iter()
                         .flat_map(|kart| {
                             kart.players().iter().map(|player| Player {
+                                number: 0,
                                 client_pk: *kart.client_pk(),
                                 index: player.index(),
                                 name: player.name(),

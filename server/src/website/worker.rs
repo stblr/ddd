@@ -11,11 +11,12 @@ use jiff::tz::TimeZone;
 
 use crate::courses::{Courses, SharedCourses};
 use crate::result_ext::ResultExt;
-use crate::storage::{Batch, Race};
+use crate::storage::{Batch, Player, Race};
 use crate::website::Rankings;
 use crate::website::course_name;
 use crate::website::html::Element;
 use crate::website::page;
+use crate::website::player;
 use crate::website::race;
 use crate::website::ranking::Ranking;
 
@@ -24,6 +25,7 @@ pub struct Worker {
     batch_receiver: Receiver<Batch>,
     rankings: Rankings,
     races_path: PathBuf,
+    players_path: PathBuf,
     rankings_path: PathBuf,
     page: String,
     file_name_buf: String,
@@ -42,6 +44,9 @@ impl Worker {
         let races_path = path.join("races");
         fs::create_dir_all(&races_path)?;
 
+        let players_path = path.join("players");
+        fs::create_dir_all(&players_path)?;
+
         let rankings_path = path.join("rankings");
         fs::create_dir_all(&rankings_path)?;
 
@@ -50,6 +55,7 @@ impl Worker {
             batch_receiver,
             rankings,
             races_path,
+            players_path,
             rankings_path,
             page: String::new(),
             file_name_buf: String::new(),
@@ -71,6 +77,9 @@ impl Worker {
                     batch => batch.unwrap(),
                 };
                 self.write_race(courses, &mut batch.race).log_err();
+                for player in &batch.players {
+                    self.write_player(player).log_err();
+                }
                 continue;
             }
 
@@ -136,6 +145,24 @@ impl Worker {
         write!(self.file_name_buf, "{}", race.number)?;
 
         self.races_path.clone_into(&mut self.path_buf);
+        self.path_buf.push(&self.file_name_buf);
+
+        fs::write(&self.path_buf, &self.page)?;
+
+        Ok(())
+    }
+
+    fn write_player(&mut self, player: &Player) -> Result<()> {
+        page::write(
+            format_args!("{} · Player #{}", player.name, player.number),
+            |body| player::write(player, body),
+            &mut self.page,
+        )?;
+
+        self.file_name_buf.clear();
+        write!(self.file_name_buf, "{}", player.number)?;
+
+        self.players_path.clone_into(&mut self.path_buf);
         self.path_buf.push(&self.file_name_buf);
 
         fs::write(&self.path_buf, &self.page)?;

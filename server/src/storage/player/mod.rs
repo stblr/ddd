@@ -15,6 +15,8 @@ mod id;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
+    #[serde(skip)]
+    pub number: u64,
     #[serde(with = "base64")]
     pub client_pk: PublicKey,
     pub index: u8,

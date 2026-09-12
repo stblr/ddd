@@ -70,11 +70,15 @@ fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> 
 }
 
 fn write_table(race: &mut Race, body: &mut Children<impl Write>) -> Result {
-    let mut table = body.element("table")?.children()?;
+    let mut table = body.element("table")?;
+    table.attribute("id")?.value("players")?;
+    let mut table = table.children()?;
+
     race.karts.sort_unstable_by_key(|kart| kart.result_index);
     for (rank, kart) in race.karts.iter().enumerate() {
         write_tr(race, rank, kart, &mut table)?;
     }
+
     table.finish()
 }
 
@@ -114,14 +118,14 @@ fn write_tr(race: &Race, rank: usize, kart: &Kart, table: &mut Children<impl Wri
     for character in kart.characters {
         let mut td = tr.element("td")?.children()?;
         let mut a = td.element("a")?;
-        a.attribute("href")?.value(format_args!("../characters/{}", character as u8))?;
+        a.attribute("href")?.value("../rankings/characters")?;
         a.content(character)?;
         td.finish()?;
     }
 
     let mut td = tr.element("td")?.children()?;
     let mut a = td.element("a")?;
-    a.attribute("href")?.value(format_args!("../karts/{}", kart.kart as u8))?;
+    a.attribute("href")?.value("../rankings/karts")?;
     a.content(kart.kart)?;
     td.finish()?;
 

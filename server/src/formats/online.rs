@@ -42,6 +42,9 @@ impl TryFrom<Frequency> for FrameRate {
 }
 
 impl ModeIndex {
+    pub const VARIANTS: [Self; 5] =
+        [Self::Versus, Self::Balloon, Self::Escape, Self::Bomb, Self::TimeAttack];
+
     pub const fn is_race(self) -> bool {
         match self {
             Self::Versus => true,

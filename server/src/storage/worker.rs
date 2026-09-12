@@ -62,7 +62,7 @@ impl Worker {
         loop {
             let mut batch = self.batch_receiver.recv().unwrap();
 
-            for player in &batch.players {
+            for player in &mut batch.players {
                 self.write_player(player).log_err();
             }
             self.write_race(&mut batch.race).log_err();
@@ -72,9 +72,9 @@ impl Worker {
         }
     }
 
-    fn write_player(&mut self, player: &Player) -> Result<()> {
-        let player_number = self.player_number(player.id());
-        self.write(player, player_number, "players")
+    fn write_player(&mut self, player: &mut Player) -> Result<()> {
+        player.number = self.player_number(player.id());
+        self.write(player, player.number, "players")
     }
 
     fn write_race(&mut self, race: &mut Race) -> Result<()> {
