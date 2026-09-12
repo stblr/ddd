@@ -893,6 +893,7 @@ impl Room {
                 team_state,
                 match_index,
                 match_start,
+                match_end,
                 poll_state,
                 karts,
                 states,
@@ -912,7 +913,9 @@ impl Room {
                 if results.is_empty() && frame >= *end_frame + 5 * 60 {
                     *results = results::compute(&self.karts, karts);
                     let match_start = SystemTime::from(*match_start);
-                    let match_duration = match_start.elapsed().unwrap_or(Duration::ZERO);
+                    let match_end = match_end.get_or_insert_with(Timestamp::now);
+                    let match_end = SystemTime::from(*match_end);
+                    let match_duration = match_end.duration_since(match_start).unwrap_or_default();
                     for kart in &mut self.karts {
                         for player in kart.players_mut() {
                             player.match_count += 1;
@@ -943,9 +946,7 @@ impl Room {
                         item_event.event_frame < MAX_KART_INPUT_COUNT as u8
                     });
                 }
-                let continuing = if results.is_empty() {
-                    false
-                } else {
+                let continuing = if let Some(match_end) = match_end {
                     let kart = |(i, kart): (_, &Kart)| {
                         let players = kart
                             .players()
@@ -1028,9 +1029,11 @@ impl Room {
                         start: *match_start,
                         selected_kart_index: poll_state.selected_kart_index,
                         course_hash: self.pack.courses()[selected_course_index as usize],
-                        end: Timestamp::now(),
+                        end: *match_end,
                     };
                     storage.store(players, race).is_ok()
+                } else {
+                    false
                 };
                 if continuing {
                     for result in results {
@@ -1094,6 +1097,7 @@ enum State {
         team_state: Option<ServerTeamStateMain>,
         match_index: u8,
         match_start: Timestamp,
+        match_end: Option<Timestamp>,
         poll_state: ServerPollStateReady,
         inputs: heapless::Vec<Inputs, MAX_ROOM_KART_COUNT>,
         karts: heapless::Vec<Option<ServerRaceKart>, MAX_ROOM_KART_COUNT>,
@@ -1166,6 +1170,7 @@ impl State {
             team_state,
             match_index,
             match_start,
+            match_end: None,
             poll_state: ServerPollStateReady { match_index, karts, selected_kart_index },
             inputs,
             karts: iter::repeat_n(None, kart_count).collect(),

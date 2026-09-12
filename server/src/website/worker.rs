@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{self, Display, Write};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,19 +11,23 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
 use crate::courses::{Courses, SharedCourses};
+use crate::player::Name;
 use crate::result_ext::ResultExt;
 use crate::storage::{Batch, Player, Race};
-use crate::website::Rankings;
+use crate::website::counter_ranking::CounterRanking;
 use crate::website::course_name;
-use crate::website::html::Element;
+use crate::website::html::{Children, Element};
+use crate::website::init::Init;
+use crate::website::pack_name;
 use crate::website::page;
 use crate::website::player;
 use crate::website::race;
-use crate::website::ranking::Ranking;
+use crate::website::rankings::Rankings;
 
 pub struct Worker {
     courses: SharedCourses,
     batch_receiver: Receiver<Batch>,
+    player_names: HashMap<u64, Name>,
     rankings: Rankings,
     races_path: PathBuf,
     players_path: PathBuf,
@@ -36,7 +41,7 @@ impl Worker {
     pub fn new(
         courses: SharedCourses,
         batch_receiver: Receiver<Batch>,
-        rankings: Rankings,
+        init: Init,
         path: impl AsRef<Path>,
     ) -> Result<Self> {
         let path = path.as_ref().join("website");
@@ -53,7 +58,8 @@ impl Worker {
         Ok(Self {
             courses,
             batch_receiver,
-            rankings,
+            player_names: init.player_names,
+            rankings: init.rankings,
             races_path,
             players_path,
             rankings_path,
@@ -80,52 +86,74 @@ impl Worker {
                 for player in &batch.players {
                     self.write_player(player).log_err();
                 }
+
+                let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
+                self.rankings.increment(now, &batch.race);
+                for player in &batch.players {
+                    self.player_names.insert(player.number, player.name);
+                }
+
                 continue;
             }
 
             let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
             self.rankings.update(now);
-            self.write_ranking(
-                "Players",
-                "Matches",
-                Rankings::player_races,
-                |player, td| td.content(player),
+            self.write_rankings(
+                "Player",
+                |pn, r, wv, b| {
+                    write_counter_ranking("Matches", Rankings::player_races)(pn, r, wv, b)?;
+                    write_counter_ranking("Play time", Rankings::player_times)(pn, r, wv, b)?;
+                    Ok(())
+                },
+                |player_names, player, td| {
+                    let mut td = td.children()?;
+                    let mut a = td.element("a")?;
+                    a.attribute("href")?.value(format_args!("../players/{player}"))?;
+                    let player = fmt::from_fn(|f| {
+                        if let Some(name) = player_names.get(player) {
+                            write!(f, "{name}")
+                        } else {
+                            write!(f, "   ")
+                        }
+                    });
+                    a.content(player)?;
+                    td.finish()
+                },
                 "players",
             )
             .log_err();
-            self.write_ranking(
+            self.write_rankings(
                 "Course",
-                "Matches",
-                Rankings::courses,
-                |course, td| {
-                    let mut td = td.children()?;
-                    course_name::write(courses, course, &mut td)?;
-                    td.finish()
-                },
+                write_counter_ranking("Matches", Rankings::courses),
+                |_, course, td| td.content(course_name::fmt(courses, course)),
                 "courses",
             )
             .log_err();
-            self.write_ranking(
+            self.write_rankings(
+                "Pack",
+                write_counter_ranking("Matches", Rankings::packs),
+                |_, pack, td| td.content(pack_name::fmt(pack)),
+                "packs",
+            )
+            .log_err();
+            self.write_rankings(
                 "Character",
-                "Picks",
-                Rankings::characters,
-                |character, td| td.content(character),
+                write_counter_ranking("Picks", Rankings::characters),
+                |_, character, td| td.content(character),
                 "characters",
             )
             .log_err();
-            self.write_ranking(
+            self.write_rankings(
                 "Kart",
-                "Picks",
-                Rankings::karts,
-                |kart, td| td.content(kart),
+                write_counter_ranking("Picks", Rankings::karts),
+                |_, kart, td| td.content(kart),
                 "karts",
             )
             .log_err();
-            self.write_ranking(
+            self.write_rankings(
                 "Combo",
-                "Picks",
-                Rankings::combos,
-                |combo, td| td.content(combo),
+                write_counter_ranking("Picks", Rankings::combos),
+                |_, combo, td| td.content(combo),
                 "combos",
             )
             .log_err();
@@ -147,9 +175,7 @@ impl Worker {
         self.races_path.clone_into(&mut self.path_buf);
         self.path_buf.push(&self.file_name_buf);
 
-        fs::write(&self.path_buf, &self.page)?;
-
-        Ok(())
+        self.write_page()
     }
 
     fn write_player(&mut self, player: &Player) -> Result<()> {
@@ -165,37 +191,65 @@ impl Worker {
         self.players_path.clone_into(&mut self.path_buf);
         self.path_buf.push(&self.file_name_buf);
 
-        fs::write(&self.path_buf, &self.page)?;
-
-        Ok(())
+        self.write_page()
     }
 
-    fn write_ranking<T, C: Display>(
+    fn write_rankings<T, V: Fn(&HashMap<u64, Name>, &T, Element<String>) -> fmt::Result>(
         &mut self,
         name: &str,
-        counter_name: &str,
-        ranking: impl Fn(&Rankings) -> &Ranking<T, C>,
-        write_value: impl Fn(&T, Element<String>) -> fmt::Result,
+        write_ranking: impl FnOnce(
+            &HashMap<u64, Name>,
+            &Rankings,
+            V,
+            &mut Children<String>,
+        ) -> fmt::Result,
+        write_value: V,
         file_name: &str,
     ) -> Result<()> {
         page::write(
             format_args!("{name} Rankings"),
-            |body| {
-                body.element("h2")?.content(counter_name)?;
-                let mut div = body.element("div")?;
-                div.attribute("class")?.value("rankings")?;
-                let mut div = div.children()?;
-                ranking(&self.rankings).write(write_value, &mut div)?;
-                div.finish()
-            },
+            |body| write_ranking(&self.player_names, &self.rankings, write_value, body),
             &mut self.page,
         )?;
 
         self.rankings_path.clone_into(&mut self.path_buf);
         self.path_buf.push(file_name);
 
-        fs::write(&self.path_buf, &self.page)?;
-
-        Ok(())
+        self.write_page()
     }
+
+    fn write_page(&self) -> Result<()> {
+        Ok(fs::write(&self.path_buf, &self.page)?)
+    }
+}
+
+fn write_counter_ranking<
+    T,
+    C: Default + Display + PartialEq,
+    V: Fn(&HashMap<u64, Name>, &T, Element<W>) -> fmt::Result,
+    W: Write,
+>(
+    counter_name: &str,
+    ranking: impl Fn(&Rankings) -> &CounterRanking<T, C>,
+) -> impl FnOnce(&HashMap<u64, Name>, &Rankings, V, &mut Children<W>) -> fmt::Result {
+    move |player_names, rankings, write_value, body| {
+        write_ranking(
+            counter_name,
+            |div| ranking(rankings).write(|value, td| write_value(player_names, value, td), div),
+            body,
+        )
+    }
+}
+
+fn write_ranking<W: Write>(
+    counter_name: &str,
+    write_ranking: impl FnOnce(&mut Children<W>) -> fmt::Result,
+    body: &mut Children<W>,
+) -> fmt::Result {
+    body.element("h2")?.content(counter_name)?;
+    let mut div = body.element("div")?;
+    div.attribute("class")?.value("rankings")?;
+    let mut div = div.children()?;
+    write_ranking(&mut div)?;
+    div.finish()
 }

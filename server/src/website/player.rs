@@ -1,10 +1,8 @@
-use std::fmt::{self, Error, Result, Write};
-
-use jiff::fmt::StdFmtWrite;
-use jiff::fmt::friendly::{FractionalUnit, SpanPrinter};
+use std::fmt::{Result, Write};
 
 use crate::formats::online::ModeIndex;
 use crate::storage::Player;
+use crate::website::duration::Duration;
 use crate::website::html::Children;
 
 pub fn write(player: &Player, body: &mut Children<impl Write>) -> Result {
@@ -19,13 +17,7 @@ pub fn write(player: &Player, body: &mut Children<impl Write>) -> Result {
 
     ul.element("li")?.content(format_args!("Matches: {}", player.race_count))?;
 
-    let play_time = fmt::from_fn(|f| {
-        SpanPrinter::new()
-            .fractional(Some(FractionalUnit::Second))
-            .precision(Some(0))
-            .print_unsigned_duration(&player.play_time, StdFmtWrite(f))
-            .map_err(|_| Error)
-    });
+    let play_time = Duration(player.play_time);
     ul.element("li")?.content(format_args!("Play time: {play_time}"))?;
 
     ul.finish()

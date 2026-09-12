@@ -25,7 +25,10 @@ fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> 
 
     let mut li = ul.element("li")?.children()?;
     li.content("Course: ")?;
-    course_name::write(courses, &race.course_hash, &mut li)?;
+    let mut a = li.element("a")?;
+    let course = base64::display(&race.course_hash);
+    a.attribute("href")?.value(format_args!("../courses/{course}"))?;
+    a.content(course_name::fmt(courses, &race.course_hash))?;
     li.finish()?;
 
     let mut li = ul.element("li")?.children()?;

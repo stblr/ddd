@@ -17,7 +17,7 @@ use scc::HashMap;
 use crate::dir_entry;
 use crate::formats::online::*;
 use crate::storage::init::Init;
-use crate::website::Rankings;
+use crate::website::Init as WebsiteInit;
 
 pub mod race;
 
@@ -36,14 +36,14 @@ impl Storage {
     pub fn load(
         batch_sender: SyncSender<Batch>,
         path: impl AsRef<Path>,
-    ) -> Result<(Self, Init, Rankings)> {
+    ) -> Result<(Self, Init, WebsiteInit)> {
         let path = path.as_ref();
 
         let tmp_path = path.join("tmp");
         fs::create_dir_all(&tmp_path)?;
 
         let mut init = Init::new(path.to_owned(), tmp_path);
-        let mut rankings = Rankings::default();
+        let mut website_init = WebsiteInit::default();
         let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
 
         let players_path = path.join("players");
@@ -56,9 +56,12 @@ impl Storage {
 
             let player: Player = dir_entry::read_json(&entry, "player")?;
             let id = player.id();
+            let name = player.name;
             players.insert_sync(id, player).map_err(|_| anyhow!("duplicate player {id:?}"))?;
 
             init.player_numbers.insert(id, number);
+
+            website_init.player_names.insert(number, name);
         }
 
         let races_path = path.join("races");
@@ -74,10 +77,10 @@ impl Storage {
             let next_room_number = room_number.checked_add(1).context("too many rooms")?;
             init.room_number = init.room_number.max(next_room_number);
 
-            rankings.increment(now, &race);
+            website_init.rankings.increment(now, &race);
         }
 
-        Ok((Self { batch_sender, players }, init, rankings))
+        Ok((Self { batch_sender, players }, init, website_init))
     }
 
     pub fn read_player<R>(&self, player_id: &PlayerId, f: impl Fn(Option<&Player>) -> R) -> R {
