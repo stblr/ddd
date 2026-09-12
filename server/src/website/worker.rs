@@ -12,15 +12,16 @@ use jiff::tz::TimeZone;
 use crate::base64;
 use crate::courses::{Courses, SharedCourses};
 use crate::result_ext::ResultExt;
-use crate::storage::Race;
+use crate::storage::{Batch, Race};
 use crate::website::Rankings;
 use crate::website::html::{Children, Element};
+use crate::website::page;
 use crate::website::rank::Rank;
 use crate::website::ranking::Ranking;
 
 pub struct Worker {
     courses: SharedCourses,
-    race_receiver: Receiver<Race>,
+    batch_receiver: Receiver<Batch>,
     rankings: Rankings,
     races_path: PathBuf,
     rankings_path: PathBuf,
@@ -32,7 +33,7 @@ pub struct Worker {
 impl Worker {
     pub fn new(
         courses: SharedCourses,
-        race_receiver: Receiver<Race>,
+        batch_receiver: Receiver<Batch>,
         rankings: Rankings,
         path: impl AsRef<Path>,
     ) -> Result<Self> {
@@ -46,7 +47,7 @@ impl Worker {
 
         Ok(Self {
             courses,
-            race_receiver,
+            batch_receiver,
             rankings,
             races_path,
             rankings_path,
@@ -65,11 +66,11 @@ impl Worker {
             if let Some(duration) = next_tick.checked_duration_since(now)
                 && !duration.is_zero()
             {
-                let mut race = match self.race_receiver.recv_timeout(duration) {
+                let mut batch = match self.batch_receiver.recv_timeout(duration) {
                     Err(RecvTimeoutError::Timeout) => continue,
-                    race => race.unwrap(),
+                    batch => batch.unwrap(),
                 };
-                self.write_race(courses, &mut race).log_err();
+                self.write_race(courses, &mut batch.race).log_err();
                 continue;
             }
 
@@ -292,37 +293,18 @@ impl Worker {
         write_value: impl Fn(&T, Element<String>) -> fmt::Result,
         file_name: &str,
     ) -> Result<()> {
-        "<!doctype html>\n".clone_into(&mut self.page);
-        let mut html = Element::new(&mut self.page, 0, "html")?;
-        html.attribute("lang")?.value("en-US")?;
-        let mut html = html.children()?;
-        let mut head = html.element("head")?.children()?;
-        let mut meta = head.element("meta")?;
-        meta.attribute("name")?.value("viewport")?;
-        meta.attribute("content")?.value("width=device-width, initial-scale=1")?;
-        meta.empty()?;
-        let mut meta = head.element("meta")?;
-        meta.attribute("name")?.value("color-scheme")?;
-        meta.attribute("content")?.value("light dark")?;
-        meta.empty()?;
-        let name = format_args!("{name} Rankings");
-        let title = format_args!("{name} · Double Dash Deluxe");
-        head.element("title")?.content(title)?;
-        let mut link = head.element("link")?;
-        link.attribute("rel")?.value("stylesheet")?;
-        link.attribute("href")?.value("../../../data/style.css")?;
-        link.empty()?;
-        head.finish()?;
-        let mut body = html.element("body")?.children()?;
-        body.element("h1")?.content(name)?;
-        body.element("h2")?.content(counter_name)?;
-        let mut div = body.element("div")?;
-        div.attribute("class")?.value("rankings")?;
-        let mut div = div.children()?;
-        ranking(&self.rankings).write(write_value, &mut div)?;
-        div.finish()?;
-        body.finish()?;
-        html.finish()?;
+        page::write(
+            format_args!("{name} Rankings"),
+            |body| {
+                body.element("h2")?.content(counter_name)?;
+                let mut div = body.element("div")?;
+                div.attribute("class")?.value("rankings")?;
+                let mut div = div.children()?;
+                ranking(&self.rankings).write(write_value, &mut div)?;
+                div.finish()
+            },
+            &mut self.page,
+        )?;
 
         self.rankings_path.clone_into(&mut self.path_buf);
         self.path_buf.push(file_name);
@@ -333,10 +315,10 @@ impl Worker {
     }
 }
 
-fn write_course<W: Write>(
+fn write_course(
     courses: &Courses,
     course_hash: &[u8; 32],
-    parent: &mut Children<W>,
+    parent: &mut Children<impl Write>,
 ) -> fmt::Result {
     let mut a = parent.element("a")?;
     let course = base64::display(course_hash);

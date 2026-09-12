@@ -5,12 +5,12 @@ use std::sync::mpsc::Receiver;
 
 use anyhow::Result;
 use arc_swap::Cache;
-use log::error;
 use ureq::Agent;
 use ureq::http::HeaderValue;
 use ureq::tls::{TlsConfig, TlsProvider};
 
 use crate::courses::{Courses, SharedCourses};
+use crate::result_ext::ResultExt;
 use crate::storage;
 use crate::webhook::race::Race;
 
@@ -54,9 +54,7 @@ impl Worker {
         loop {
             let courses = courses.load();
             let mut race = self.race_receiver.recv().unwrap();
-            if let Err(e) = self.send_race(courses, &mut race) {
-                error!("{e}");
-            }
+            self.send_race(courses, &mut race).log_err();
         }
     }
 

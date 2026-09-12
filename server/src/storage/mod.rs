@@ -1,3 +1,4 @@
+pub use crate::storage::batch::Batch;
 pub use crate::storage::player::Id as PlayerId;
 pub use crate::storage::player::Player;
 pub use crate::storage::race::Race;
@@ -15,7 +16,6 @@ use scc::HashMap;
 
 use crate::dir_entry;
 use crate::formats::online::*;
-use crate::storage::batch::Batch;
 use crate::storage::init::Init;
 use crate::website::Rankings;
 

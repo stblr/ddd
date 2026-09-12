@@ -59,9 +59,9 @@ impl<T, C> Default for Ranking<T, C> {
     }
 }
 
-fn write<T, C: Display, W: Write>(
+fn write<T, W: Write>(
     name: &str,
-    sorted: &Sorted<T, Reverse<C>>,
+    sorted: &Sorted<T, Reverse<impl Display>>,
     write_value: impl Fn(&T, Element<W>) -> Result,
     parent: &mut Children<'_, W>,
 ) -> Result {
