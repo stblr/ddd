@@ -47,7 +47,7 @@ impl<'a, W: Write> Attribute<'a, W> {
         Ok(Self { writer })
     }
 
-    #[expect(clippy::unused_self)]
+    #[expect(dead_code, clippy::unused_self)]
     pub fn empty(self) {}
 
     pub fn value(self, value: impl Display) -> Result<()> {

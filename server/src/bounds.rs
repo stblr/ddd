@@ -1,4 +1,5 @@
 pub trait Bounds {
+    #[expect(dead_code)]
     const MIN: Self;
     const MAX: Self;
 }

@@ -31,7 +31,7 @@ impl<T, C: Default + Display + PartialEq> CounterRanking<T, C> {
     }
 }
 
-impl<T: Bounds + Copy + Eq + Hash + Ord, C: AddAssign + Copy + Default + Ord + SubAssign>
+impl<T: Bounds + Copy + Hash + Ord, C: AddAssign + Copy + Default + Ord + SubAssign>
     CounterRanking<T, C>
 {
     pub fn increment(&mut self, now: Date, date: Date, value: T, amount: C) {
