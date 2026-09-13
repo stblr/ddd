@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Result, Write};
 use std::time::SystemTime;
@@ -6,8 +7,9 @@ use jiff::civil::Date;
 use jiff::tz::TimeZone;
 
 use crate::courses::Courses;
-use crate::formats::online::{CharacterId, KartId};
+use crate::formats::online::{CharacterId, KartId, MODE_INDEX_COUNT, ModeIndex};
 use crate::player::Name;
+use crate::sorted::Sorted;
 use crate::storage::Race;
 use crate::website::combo::Combo;
 use crate::website::counter_ranking::CounterRanking;
@@ -16,9 +18,11 @@ use crate::website::duration::Duration;
 use crate::website::html::{Children, Element};
 use crate::website::pack_name;
 use crate::website::page;
+use crate::website::ranking;
 
 #[derive(Debug, Default)]
 pub struct Rankings {
+    player_mmrs: [Sorted<u64, Reverse<u16>>; MODE_INDEX_COUNT],
     player_races: CounterRanking<u64, u64>,
     player_times: CounterRanking<u64, Duration>,
     courses: CounterRanking<[u8; 32], u64>,
@@ -33,6 +37,7 @@ impl Rankings {
         write(
             "Player",
             |wv, b| {
+                write_ranking("MMR", |d| self.write_player_mmrs(wv, d), b)?;
                 write_counter_ranking("Matches", &self.player_races)(wv, b)?;
                 write_counter_ranking("Play time", &self.player_times)(wv, b)?;
                 Ok(())
@@ -53,6 +58,17 @@ impl Rankings {
             },
             page,
         )
+    }
+
+    fn write_player_mmrs<W: Write>(
+        &self,
+        write_value: impl Fn(&u64, Element<W>) -> Result,
+        div: &mut Children<W>,
+    ) -> Result {
+        for mode_index in ModeIndex::VARIANTS {
+            ranking::write(mode_index, &self.player_mmrs[mode_index as usize], &write_value, div)?;
+        }
+        Ok(())
     }
 
     pub fn write_courses(&self, courses: &Courses, page: &mut String) -> Result {

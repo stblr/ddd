@@ -6,10 +6,10 @@ use crate::website::html::{Children, Element};
 use crate::website::rank::Rank;
 
 pub fn write<T, W: Write>(
-    name: &str,
+    name: impl Display,
     sorted: &Sorted<T, Reverse<impl Default + Display + PartialEq>>,
     write_value: impl Fn(&T, Element<W>) -> Result,
-    parent: &mut Children<'_, W>,
+    parent: &mut Children<W>,
 ) -> Result {
     let mut div = parent.element("div")?;
     div.attribute("class")?.value("ranking")?;

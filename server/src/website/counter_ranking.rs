@@ -23,7 +23,7 @@ impl<T, C: Default + Display + PartialEq> CounterRanking<T, C> {
     pub fn write<W: Write>(
         &self,
         write_value: impl Fn(&T, Element<W>) -> Result,
-        parent: &mut Children<'_, W>,
+        parent: &mut Children<W>,
     ) -> Result {
         ranking::write("Last 30 days", &self.recent, &write_value, parent)?;
         ranking::write("All-time", &self.total, &write_value, parent)?;
