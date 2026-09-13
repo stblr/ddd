@@ -40,9 +40,9 @@ impl Worker {
         Self {
             courses,
             race_receiver,
-            username: "dev.ddd.gg".to_owned(),
+            username: "DDD Dev Server".to_owned(),
             avatar_url: "https://i.imgur.com/sTkpcT9.png".to_owned(),
-            url: "https://live.dev.ddd.gg".to_owned(),
+            url: "https://dev.ddd.gg".to_owned(),
             buf: vec![],
             agent,
             webhook: Credential::load("run/webhook.txt"),

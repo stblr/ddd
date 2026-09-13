@@ -45,7 +45,7 @@ impl Worker {
     ) -> Result<Self> {
         let path = path.as_ref().join("website");
 
-        let races_path = path.join("races");
+        let races_path = path.join("matches");
         fs::create_dir_all(&races_path)?;
 
         let players_path = path.join("players");
@@ -115,6 +115,8 @@ impl Worker {
             self.write_rankings(|_, rankings, page| rankings.write_karts(page), "karts");
             self.write_rankings(|_, rankings, page| rankings.write_combos(page), "combos");
             self.write_stat(Stats::write_races, "matches");
+            self.write_stat(Stats::write_players, "players");
+            self.write_stat(Stats::write_rooms, "rooms");
             next_tick += Duration::from_secs(60);
         }
     }

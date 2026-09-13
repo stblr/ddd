@@ -21,6 +21,7 @@ use crate::rooms::{Rooms, Search};
 use crate::storage::{PlayerId, Storage};
 use crate::update::Update;
 
+#[derive(Debug)]
 pub struct Client {
     expiration: Instant,
     addr: SocketAddr,

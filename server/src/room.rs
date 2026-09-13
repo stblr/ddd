@@ -26,6 +26,7 @@ use crate::results;
 use crate::storage::race;
 use crate::storage::{Player, Race, Storage};
 
+#[derive(Debug)]
 pub struct Room {
     host_pk: Option<PublicKey>,
     karts: heapless::Vec<Kart, MAX_ROOM_KART_COUNT>,
@@ -1074,6 +1075,7 @@ pub struct CodePair {
     pub short: u64,
 }
 
+#[derive(Debug)]
 enum State {
     Room {
         deadline: Instant,

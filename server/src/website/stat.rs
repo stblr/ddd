@@ -19,7 +19,11 @@ pub struct Stat {
 
 impl Stat {
     pub fn add(&mut self, dt: DateTime, amount: u64) {
-        self.modify(dt, |value| *value += amount);
+        self.modify(dt, |v| *v += amount);
+    }
+
+    pub fn max(&mut self, dt: DateTime, value: u64) {
+        self.modify(dt, |v| *v = value.max(*v));
     }
 
     fn modify(&mut self, dt: DateTime, f: impl Fn(&mut u64)) {
@@ -73,12 +77,11 @@ impl<P: Period> Periodic<P> {
         let span = self.dt.since((P::UNIT, dt)).unwrap();
         let index = P::get_index(span);
         if let Ok(index) = usize::try_from(index) {
-            if index >= P::MAX_LEN {
-                return;
-            }
-            let len = self.values.len().max(index + 1);
+            let len = self.values.len().max(index + 1).min(P::MAX_LEN);
             self.values.resize(len, 0);
-            f(&mut self.values[index]);
+            if let Some(value) = self.values.get_mut(index) {
+                f(value);
+            }
         } else {
             for _ in index..-1 {
                 self.values.truncate(P::MAX_LEN);

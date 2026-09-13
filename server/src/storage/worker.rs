@@ -1,19 +1,27 @@
 use std::collections::HashMap;
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 use std::fs;
 use std::hash::Hash;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, SyncSender};
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 use serde::Serialize;
 use serde_json::ser::{PrettyFormatter, Serializer};
 
+use crate::clients::Clients;
+use crate::formats::online::FrameRate;
 use crate::result_ext::ResultExt;
+use crate::rooms::Rooms;
 use crate::storage::batch::Batch;
 use crate::storage::init::Init;
 use crate::storage::player::{Id as PlayerId, Player};
 use crate::storage::race::Race;
+use crate::storage::stats::Stats;
 
 #[derive(Debug)]
 pub struct Worker {
@@ -31,6 +39,8 @@ pub struct Worker {
     path_buf: PathBuf,
     website_batch_sender: SyncSender<Batch>,
     webhook_race_sender: SyncSender<Race>,
+    clients: Arc<Clients>,
+    rooms: Arc<Rooms>,
 }
 
 impl Worker {
@@ -39,6 +49,8 @@ impl Worker {
         init: Init,
         website_batch_sender: SyncSender<Batch>,
         webhook_race_sender: SyncSender<Race>,
+        clients: Arc<Clients>,
+        rooms: Arc<Rooms>,
     ) -> Self {
         Self {
             batch_receiver,
@@ -55,20 +67,42 @@ impl Worker {
             path_buf: PathBuf::new(),
             website_batch_sender,
             webhook_race_sender,
+            clients,
+            rooms,
         }
     }
 
     pub fn run(mut self) -> ! {
+        let mut next_tick = Instant::now();
         loop {
-            let mut batch = self.batch_receiver.recv().unwrap();
+            let now = Instant::now();
+            if let Some(duration) = next_tick.checked_duration_since(now)
+                && !duration.is_zero()
+            {
+                let mut batch = self.batch_receiver.recv().unwrap();
 
-            for player in &mut batch.players {
-                self.write_player(player).log_err();
+                for player in &mut batch.players {
+                    self.write_player(player).log_err();
+                }
+                self.write_race(&mut batch.race).log_err();
+
+                self.website_batch_sender.try_send(batch.clone()).log_err();
+                self.webhook_race_sender.try_send(batch.race).log_err();
+
+                continue;
             }
-            self.write_race(&mut batch.race).log_err();
 
-            self.website_batch_sender.try_send(batch.clone()).log_err();
-            self.webhook_race_sender.try_send(batch.race).log_err();
+            let room_count = FrameRate::VARIANTS
+                .into_iter()
+                .map(|frame_rate| self.rooms.count(frame_rate) as u64)
+                .sum();
+            let stats = Stats {
+                dt: Timestamp::now().to_zoned(TimeZone::UTC).into(),
+                player_count: self.clients.player_count() as u64,
+                room_count,
+            };
+            self.write_stats(&stats).log_err();
+            next_tick += Duration::from_secs(60);
         }
     }
 
@@ -90,14 +124,18 @@ impl Worker {
         self.write(race, race.number, "races")
     }
 
-    fn write<T: Serialize>(&mut self, x: &T, number: u64, dir: &str) -> Result<()> {
+    fn write_stats(&mut self, stats: &Stats) -> Result<()> {
+        self.write(stats, stats.dt.strftime("%Y-%m-%dT%H:%M"), "stats")
+    }
+
+    fn write<T: Serialize>(&mut self, x: &T, stem: impl Display, dir: &str) -> Result<()> {
         self.buf.clear();
         let formatter = PrettyFormatter::with_indent(b"    ");
         let mut serializer = Serializer::with_formatter(&mut self.buf, formatter);
         x.serialize(&mut serializer)?;
 
         self.file_name_buf.clear();
-        write!(self.file_name_buf, "{number}.json")?;
+        write!(self.file_name_buf, "{stem}.json")?;
 
         self.tmp_path.clone_into(&mut self.tmp_path_buf);
         self.tmp_path_buf.push(&self.file_name_buf);

@@ -18,6 +18,7 @@ use crate::pack::Pack;
 use crate::room::{CodePair, Room};
 use crate::storage::Storage;
 
+#[derive(Debug)]
 pub struct Rooms {
     rooms: [HashMap<u128, Room>; 2],
     counts: [AtomicUsize; 2],
@@ -282,7 +283,7 @@ pub struct Search {
     pub format: RoomOptionFormat,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct SearchRooms {
     ids: Arc<HashSet<u128>>,
     player_count: usize,

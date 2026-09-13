@@ -104,7 +104,7 @@ struct AuthorUrl<'a> {
 
 impl Display for AuthorUrl<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}/{}", self.base_url, self.room_number)
+        write!(f, "{}/rooms/{}", self.base_url, self.room_number)
     }
 }
 
@@ -126,7 +126,7 @@ struct Url<'a> {
 
 impl Display for Url<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}/{}", self.base_url, self.race_number)
+        write!(f, "{}/matches/{}", self.base_url, self.race_number)
     }
 }
 

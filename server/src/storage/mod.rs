@@ -2,6 +2,7 @@ pub use crate::storage::batch::Batch;
 pub use crate::storage::player::Id as PlayerId;
 pub use crate::storage::player::Player;
 pub use crate::storage::race::Race;
+pub use crate::storage::stats::Stats;
 pub use crate::storage::worker::Worker;
 
 use std::fs::{self, DirEntry};
@@ -24,6 +25,7 @@ pub mod race;
 mod batch;
 mod init;
 mod player;
+mod stats;
 mod worker;
 
 #[derive(Debug)]
@@ -79,6 +81,19 @@ impl Storage {
 
             website_init.rankings.increment(now, &race);
             website_init.stats.add(&race);
+        }
+
+        let stats_path = path.join("stats");
+        fs::create_dir_all(&stats_path)?;
+        for entry in fs::read_dir(&stats_path)? {
+            let entry = entry?;
+
+            let dt = dir_entry::extract_json_stem(&entry, "stats")?;
+
+            let mut stats: Stats = dir_entry::read_json(&entry, "stats")?;
+            stats.dt = dt;
+
+            website_init.stats.max(&stats);
         }
 
         Ok((Self { batch_sender, players }, init, website_init))

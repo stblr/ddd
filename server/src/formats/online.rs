@@ -19,6 +19,10 @@ pub type CharacterId = CharacterID;
 pub type KartId = KartID;
 pub type ItemId = ItemID;
 
+impl FrameRate {
+    pub const VARIANTS: [Self; 2] = [Self::SixtyHz, Self::FiftyHz];
+}
+
 impl Display for FrameRate {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let frame_rate = match self {
@@ -42,7 +46,7 @@ impl TryFrom<Frequency> for FrameRate {
 }
 
 impl ModeIndex {
-    pub const VARIANTS: [Self; 5] =
+    pub const VARIANTS: [Self; MODE_INDEX_COUNT] =
         [Self::Versus, Self::Balloon, Self::Escape, Self::Bomb, Self::TimeAttack];
 
     pub const fn is_race(self) -> bool {
