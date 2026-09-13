@@ -19,18 +19,6 @@ pub struct CounterRanking<T, C> {
     total: Sorted<T, Reverse<C>>,
 }
 
-impl<T, C: Default + Display + PartialEq> CounterRanking<T, C> {
-    pub fn write<W: Write>(
-        &self,
-        write_value: impl Fn(&T, Element<W>) -> Result,
-        parent: &mut Children<W>,
-    ) -> Result {
-        ranking::write("Last 30 days", &self.recent, &write_value, parent)?;
-        ranking::write("All-time", &self.total, &write_value, parent)?;
-        Ok(())
-    }
-}
-
 impl<T: Bounds + Copy + Hash + Ord, C: AddAssign + Copy + Default + Ord + SubAssign>
     CounterRanking<T, C>
 {
@@ -49,6 +37,18 @@ impl<T: Bounds + Copy + Hash + Ord, C: AddAssign + Copy + Default + Ord + SubAss
         for ((_, value), amount) in self.counters.extract_if(..=(date, T::MAX), |_, _| true) {
             self.recent.modify(value, |counter| counter.0 -= amount);
         }
+    }
+}
+
+impl<T, C: Default + Display + PartialEq> CounterRanking<T, C> {
+    pub fn write<W: Write>(
+        &self,
+        write_value: impl Fn(&T, Element<W>) -> Result,
+        parent: &mut Children<W>,
+    ) -> Result {
+        ranking::write("Last 30 days", &self.recent, &write_value, parent)?;
+        ranking::write("All-time", &self.total, &write_value, parent)?;
+        Ok(())
     }
 }
 

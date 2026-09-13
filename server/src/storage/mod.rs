@@ -78,6 +78,7 @@ impl Storage {
             init.room_number = init.room_number.max(next_room_number);
 
             website_init.rankings.increment(now, &race);
+            website_init.stats.add(&race);
         }
 
         Ok((Self { batch_sender, players }, init, website_init))

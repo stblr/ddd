@@ -106,20 +106,20 @@ a {
     border-color: #9d4cff99;
 }
 
-.rankings {
+.rankings, .stats {
     display: flex;
     flex-wrap: wrap;
     gap: 2rem;
 }
 
-.ranking {
+.ranking, .stat {
     background-color: #00000011;
     border: 0.125rem solid #00000022;
     border-radius: 0.5rem;
     padding: 0.5rem 0.25rem;
 }
 
-.ranking h3 {
+.ranking h3, .stat h2 {
     margin: 0.25rem 0.5rem 0.5rem 0.5rem;
 }
 

@@ -14,4 +14,6 @@ mod race;
 mod rank;
 mod ranking;
 mod rankings;
+mod stat;
+mod stats;
 mod worker;

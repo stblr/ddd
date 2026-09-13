@@ -19,15 +19,18 @@ use crate::website::page;
 use crate::website::player;
 use crate::website::race;
 use crate::website::rankings::Rankings;
+use crate::website::stats::Stats;
 
 pub struct Worker {
     courses: SharedCourses,
     batch_receiver: Receiver<Batch>,
     player_names: HashMap<u64, Name>,
     rankings: Rankings,
+    stats: Stats,
     races_path: PathBuf,
     players_path: PathBuf,
     rankings_path: PathBuf,
+    stats_path: PathBuf,
     page: String,
     file_name_buf: String,
     path_buf: PathBuf,
@@ -51,14 +54,19 @@ impl Worker {
         let rankings_path = path.join("rankings");
         fs::create_dir_all(&rankings_path)?;
 
+        let stats_path = path.join("stats");
+        fs::create_dir_all(&stats_path)?;
+
         Ok(Self {
             courses,
             batch_receiver,
             player_names: init.player_names,
             rankings: init.rankings,
+            stats: init.stats,
             races_path,
             players_path,
             rankings_path,
+            stats_path,
             page: String::new(),
             file_name_buf: String::new(),
             path_buf: PathBuf::new(),
@@ -106,6 +114,7 @@ impl Worker {
             self.write_rankings(|_, rankings, page| rankings.write_characters(page), "characters");
             self.write_rankings(|_, rankings, page| rankings.write_karts(page), "karts");
             self.write_rankings(|_, rankings, page| rankings.write_combos(page), "combos");
+            self.write_stat(Stats::write_races, "matches");
             next_tick += Duration::from_secs(60);
         }
     }
@@ -152,6 +161,22 @@ impl Worker {
             write_rankings(&self.player_names, &self.rankings, &mut self.page)?;
 
             self.rankings_path.clone_into(&mut self.path_buf);
+            self.path_buf.push(file_name);
+
+            self.write_page()
+        }()
+        .log_err();
+    }
+
+    fn write_stat(
+        &mut self,
+        write_stat: impl FnOnce(&Stats, &mut String) -> fmt::Result,
+        file_name: &str,
+    ) {
+        || -> Result<()> {
+            write_stat(&self.stats, &mut self.page)?;
+
+            self.stats_path.clone_into(&mut self.path_buf);
             self.path_buf.push(file_name);
 
             self.write_page()

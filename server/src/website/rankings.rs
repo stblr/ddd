@@ -33,6 +33,38 @@ pub struct Rankings {
 }
 
 impl Rankings {
+    pub fn increment(&mut self, now: Date, race: &Race) {
+        let date = race.start.to_zoned(TimeZone::UTC).into();
+        self.courses.increment(now, date, race.course_hash, 1);
+        self.packs.increment(now, date, race.pack_hash, 1);
+        let start = SystemTime::from(race.start);
+        let end = SystemTime::from(race.end);
+        let duration = end.duration_since(start).unwrap_or_default();
+        let duration = Duration(duration);
+        for kart in &race.karts {
+            for player in &kart.players {
+                self.player_races.increment(now, date, player.number, 1);
+                self.player_times.increment(now, date, player.number, duration);
+            }
+            for character in kart.characters {
+                self.characters.increment(now, date, character, 1);
+            }
+            self.karts.increment(now, date, kart.kart, 1);
+            let combo = Combo::new(kart.characters, kart.kart);
+            self.combos.increment(now, date, combo, 1);
+        }
+    }
+
+    pub fn update(&mut self, now: Date) {
+        self.player_races.update(now);
+        self.player_times.update(now);
+        self.courses.update(now);
+        self.packs.update(now);
+        self.characters.update(now);
+        self.karts.update(now);
+        self.combos.update(now);
+    }
+
     pub fn write_players(&self, player_names: &HashMap<u64, Name>, page: &mut String) -> Result {
         write(
             "Player",
@@ -114,38 +146,6 @@ impl Rankings {
             |combo, td| td.content(combo),
             page,
         )
-    }
-
-    pub fn increment(&mut self, now: Date, race: &Race) {
-        let date = race.start.to_zoned(TimeZone::UTC).into();
-        self.courses.increment(now, date, race.course_hash, 1);
-        self.packs.increment(now, date, race.pack_hash, 1);
-        let start = SystemTime::from(race.start);
-        let end = SystemTime::from(race.end);
-        let duration = end.duration_since(start).unwrap_or_default();
-        let duration = Duration(duration);
-        for kart in &race.karts {
-            for player in &kart.players {
-                self.player_races.increment(now, date, player.number, 1);
-                self.player_times.increment(now, date, player.number, duration);
-            }
-            for character in kart.characters {
-                self.characters.increment(now, date, character, 1);
-            }
-            self.karts.increment(now, date, kart.kart, 1);
-            let combo = Combo::new(kart.characters, kart.kart);
-            self.combos.increment(now, date, combo, 1);
-        }
-    }
-
-    pub fn update(&mut self, now: Date) {
-        self.player_races.update(now);
-        self.player_times.update(now);
-        self.courses.update(now);
-        self.packs.update(now);
-        self.characters.update(now);
-        self.karts.update(now);
-        self.combos.update(now);
     }
 }
 
