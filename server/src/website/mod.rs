@@ -1,4 +1,5 @@
 pub use crate::website::init::Init;
+pub use crate::website::message::Message;
 pub use crate::website::worker::Worker;
 
 mod combo;
@@ -7,6 +8,7 @@ mod course_name;
 mod duration;
 mod html;
 mod init;
+mod message;
 mod pack_name;
 mod page;
 mod player;

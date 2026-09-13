@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{self, Write};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{Receiver, RecvTimeoutError};
-use std::time::{Duration, Instant};
+use std::sync::mpsc::Receiver;
 
 use anyhow::Result;
 use arc_swap::Cache;
@@ -13,8 +12,9 @@ use jiff::tz::TimeZone;
 use crate::courses::{Courses, SharedCourses};
 use crate::player::Name;
 use crate::result_ext::ResultExt;
-use crate::storage::{Batch, Player, Race};
+use crate::storage::{Batch, Player, Race, Stats as StorageStats};
 use crate::website::init::Init;
+use crate::website::message::Message;
 use crate::website::page;
 use crate::website::player;
 use crate::website::race;
@@ -23,7 +23,7 @@ use crate::website::stats::Stats;
 
 pub struct Worker {
     courses: SharedCourses,
-    batch_receiver: Receiver<Batch>,
+    message_receiver: Receiver<Message>,
     player_names: HashMap<u64, Name>,
     rankings: Rankings,
     stats: Stats,
@@ -39,7 +39,7 @@ pub struct Worker {
 impl Worker {
     pub fn new(
         courses: SharedCourses,
-        batch_receiver: Receiver<Batch>,
+        message_receiver: Receiver<Message>,
         init: Init,
         path: impl AsRef<Path>,
     ) -> Result<Self> {
@@ -59,7 +59,7 @@ impl Worker {
 
         Ok(Self {
             courses,
-            batch_receiver,
+            message_receiver,
             player_names: init.player_names,
             rankings: init.rankings,
             stats: init.stats,
@@ -75,50 +75,46 @@ impl Worker {
 
     pub fn run(mut self) -> ! {
         let mut courses = Cache::new(self.courses.clone());
-        let mut next_tick = Instant::now();
         loop {
+            let mut message = self.message_receiver.recv().unwrap();
             let courses = courses.load();
-            let now = Instant::now();
-            if let Some(duration) = next_tick.checked_duration_since(now)
-                && !duration.is_zero()
-            {
-                let mut batch = match self.batch_receiver.recv_timeout(duration) {
-                    Err(RecvTimeoutError::Timeout) => continue,
-                    batch => batch.unwrap(),
-                };
-                self.write_race(courses, &mut batch.race).log_err();
-                for player in &batch.players {
-                    self.write_player(player).log_err();
-                }
-
-                let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
-                self.rankings.increment(now, &batch.race);
-                for player in &batch.players {
-                    self.player_names.insert(player.number, player.name);
-                }
-
-                continue;
+            match &mut message {
+                Message::Batch(batch) => self.process_batch(courses, batch),
+                Message::Stats(stats) => self.process_stats(courses, stats),
             }
-
-            let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
-            self.rankings.update(now);
-            self.write_rankings(
-                |player_names, rankings, page| rankings.write_players(player_names, page),
-                "players",
-            );
-            self.write_rankings(
-                |_, rankings, page| rankings.write_courses(courses, page),
-                "courses",
-            );
-            self.write_rankings(|_, rankings, page| rankings.write_packs(page), "packs");
-            self.write_rankings(|_, rankings, page| rankings.write_characters(page), "characters");
-            self.write_rankings(|_, rankings, page| rankings.write_karts(page), "karts");
-            self.write_rankings(|_, rankings, page| rankings.write_combos(page), "combos");
-            self.write_stat(Stats::write_races, "matches");
-            self.write_stat(Stats::write_players, "players");
-            self.write_stat(Stats::write_rooms, "rooms");
-            next_tick += Duration::from_secs(60);
         }
+    }
+
+    fn process_batch(&mut self, courses: &Courses, batch: &mut Batch) {
+        self.write_race(courses, &mut batch.race).log_err();
+        for player in &batch.players {
+            self.write_player(player).log_err();
+        }
+
+        for player in &batch.players {
+            self.player_names.insert(player.number, player.name);
+        }
+        let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
+        self.rankings.add(now, &batch.race);
+        self.stats.add(&batch.race);
+    }
+
+    fn process_stats(&mut self, courses: &Courses, stats: &StorageStats) {
+        let now = Timestamp::now().to_zoned(TimeZone::UTC).into();
+        self.rankings.update(now);
+        self.stats.max(stats);
+        self.write_rankings(
+            |player_names, rankings, page| rankings.write_players(player_names, page),
+            "players",
+        );
+        self.write_rankings(|_, rankings, page| rankings.write_courses(courses, page), "courses");
+        self.write_rankings(|_, rankings, page| rankings.write_packs(page), "packs");
+        self.write_rankings(|_, rankings, page| rankings.write_characters(page), "characters");
+        self.write_rankings(|_, rankings, page| rankings.write_karts(page), "karts");
+        self.write_rankings(|_, rankings, page| rankings.write_combos(page), "combos");
+        self.write_stat(Stats::write_races, "matches");
+        self.write_stat(Stats::write_players, "players");
+        self.write_stat(Stats::write_rooms, "rooms");
     }
 
     fn write_race(&mut self, courses: &Courses, race: &mut Race) -> Result<()> {

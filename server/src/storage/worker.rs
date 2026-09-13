@@ -4,7 +4,7 @@ use std::fs;
 use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::mpsc::{Receiver, SyncSender};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -22,6 +22,7 @@ use crate::storage::init::Init;
 use crate::storage::player::{Id as PlayerId, Player};
 use crate::storage::race::Race;
 use crate::storage::stats::Stats;
+use crate::website::Message;
 
 #[derive(Debug)]
 pub struct Worker {
@@ -37,7 +38,7 @@ pub struct Worker {
     file_name_buf: String,
     tmp_path_buf: PathBuf,
     path_buf: PathBuf,
-    website_batch_sender: SyncSender<Batch>,
+    website_message_sender: SyncSender<Message>,
     webhook_race_sender: SyncSender<Race>,
     clients: Arc<Clients>,
     rooms: Arc<Rooms>,
@@ -47,7 +48,7 @@ impl Worker {
     pub fn new(
         batch_receiver: Receiver<Batch>,
         init: Init,
-        website_batch_sender: SyncSender<Batch>,
+        website_message_sender: SyncSender<Message>,
         webhook_race_sender: SyncSender<Race>,
         clients: Arc<Clients>,
         rooms: Arc<Rooms>,
@@ -65,7 +66,7 @@ impl Worker {
             file_name_buf: String::new(),
             tmp_path_buf: PathBuf::new(),
             path_buf: PathBuf::new(),
-            website_batch_sender,
+            website_message_sender,
             webhook_race_sender,
             clients,
             rooms,
@@ -79,14 +80,17 @@ impl Worker {
             if let Some(duration) = next_tick.checked_duration_since(now)
                 && !duration.is_zero()
             {
-                let mut batch = self.batch_receiver.recv().unwrap();
+                let mut batch = match self.batch_receiver.recv_timeout(duration) {
+                    Err(RecvTimeoutError::Timeout) => continue,
+                    batch => batch.unwrap(),
+                };
 
                 for player in &mut batch.players {
                     self.write_player(player).log_err();
                 }
                 self.write_race(&mut batch.race).log_err();
 
-                self.website_batch_sender.try_send(batch.clone()).log_err();
+                self.website_message_sender.try_send(Message::Batch(batch.clone())).log_err();
                 self.webhook_race_sender.try_send(batch.race).log_err();
 
                 continue;
@@ -101,7 +105,11 @@ impl Worker {
                 player_count: self.clients.player_count() as u64,
                 room_count,
             };
+
             self.write_stats(&stats).log_err();
+
+            self.website_message_sender.try_send(Message::Stats(stats)).log_err();
+
             next_tick += Duration::from_secs(60);
         }
     }

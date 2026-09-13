@@ -22,7 +22,7 @@ pub struct CounterRanking<T, C> {
 impl<T: Bounds + Copy + Hash + Ord, C: AddAssign + Copy + Default + Ord + SubAssign>
     CounterRanking<T, C>
 {
-    pub fn increment(&mut self, now: Date, date: Date, value: T, amount: C) {
+    pub fn add(&mut self, now: Date, date: Date, value: T, amount: C) {
         if now.duration_since(date) < RECENT_DURATION {
             *self.counters.entry((date, value)).or_default() += amount;
 

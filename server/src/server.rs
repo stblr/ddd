@@ -53,10 +53,10 @@ pub fn spawn(
     trace!("Next room number: {}", storage_init.room_number);
     trace!("Next race number: {}", storage_init.race_number);
 
-    let (website_batch_sender, website_batch_receiver) =
+    let (website_message_sender, website_message_receiver) =
         mpsc::sync_channel(2 * config.load().max_rooms_per_frame_rate);
     let website_worker =
-        WebsiteWorker::new(courses.clone(), website_batch_receiver, rankings, &base_path)?;
+        WebsiteWorker::new(courses.clone(), website_message_receiver, rankings, &base_path)?;
     Builder::new().name("website".to_owned()).spawn(|| website_worker.run())?;
 
     let (webhook_race_sender, webhook_race_receiver) =
@@ -67,7 +67,7 @@ pub fn spawn(
     let storage_worker = StorageWorker::new(
         batch_receiver,
         storage_init,
-        website_batch_sender,
+        website_message_sender,
         webhook_race_sender,
         clients.clone(),
         rooms.clone(),

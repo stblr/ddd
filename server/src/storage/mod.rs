@@ -79,7 +79,7 @@ impl Storage {
             let next_room_number = room_number.checked_add(1).context("too many rooms")?;
             init.room_number = init.room_number.max(next_room_number);
 
-            website_init.rankings.increment(now, &race);
+            website_init.rankings.add(now, &race);
             website_init.stats.add(&race);
         }
 
