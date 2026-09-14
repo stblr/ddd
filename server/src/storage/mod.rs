@@ -63,6 +63,7 @@ impl Storage {
 
             init.player_numbers.insert(id, number);
 
+            website_init.player_numbers.insert(id, number);
             website_init.player_names.insert(number, name);
         }
 

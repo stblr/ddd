@@ -33,19 +33,17 @@ impl Stat {
     }
 
     pub fn write(&self, name: &str, page: &mut String) -> Result {
-        page::write(
-            format_args!("{name} · Stats"),
-            |body| {
-                let mut div = body.element("div")?;
-                div.attribute("class")?.value("stats")?;
-                let mut div = div.children()?;
-                self.hourly.write(&mut div)?;
-                self.daily.write(&mut div)?;
-                self.monthly.write(&mut div)?;
-                div.finish()
-            },
-            page,
-        )
+        let write = |body: &mut Children<_>| {
+            let mut div = body.element("div")?;
+            div.attribute("class")?.value("stats")?;
+            let mut div = div.children()?;
+            self.hourly.write(&mut div)?;
+            self.daily.write(&mut div)?;
+            self.monthly.write(&mut div)?;
+            div.finish()
+        };
+
+        page::write(format_args!("{name} · Stats"), write, page)
     }
 }
 

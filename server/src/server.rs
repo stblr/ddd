@@ -55,8 +55,13 @@ pub fn spawn(
 
     let (website_message_sender, website_message_receiver) =
         mpsc::sync_channel(2 * config.load().max_rooms_per_frame_rate);
-    let website_worker =
-        WebsiteWorker::new(courses.clone(), website_message_receiver, rankings, &base_path)?;
+    let website_worker = WebsiteWorker::new(
+        courses.clone(),
+        website_message_receiver,
+        rankings,
+        &base_path,
+        rooms.clone(),
+    )?;
     Builder::new().name("website".to_owned()).spawn(|| website_worker.run())?;
 
     let (webhook_race_sender, webhook_race_receiver) =

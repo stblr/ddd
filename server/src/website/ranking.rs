@@ -36,7 +36,5 @@ pub fn write<T, W: Write>(
     }
     table.finish()?;
 
-    div.finish()?;
-
-    Ok(())
+    div.finish()
 }

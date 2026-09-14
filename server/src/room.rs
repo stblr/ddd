@@ -150,6 +150,14 @@ impl Room {
         }
     }
 
+    pub const fn has_host(&self) -> bool {
+        self.host_pk.is_some()
+    }
+
+    pub const fn host_pk(&self) -> Option<&PublicKey> {
+        self.host_pk.as_ref()
+    }
+
     fn is_host(&self, client_pk: &PublicKey) -> bool {
         Some(client_pk) == self.host_pk.as_ref()
     }

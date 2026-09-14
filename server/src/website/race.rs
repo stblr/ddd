@@ -4,13 +4,21 @@ use crate::courses::Courses;
 use crate::storage::race::{Kart, Race};
 use crate::website::course_name;
 use crate::website::html::Children;
-use crate::website::pack_name;
+use crate::website::pack_link;
+use crate::website::page;
 use crate::website::rank::Rank;
+use crate::website::spectator_count;
 
-pub fn write(courses: &Courses, race: &mut Race, body: &mut Children<impl Write>) -> Result {
-    write_ul(courses, race, body)?;
-    write_table(race, body)?;
-    Ok(())
+pub fn write(courses: &Courses, race: &mut Race, page: &mut String) -> Result {
+    let (mode, number) = (race.mode, race.number);
+
+    let write = |body: &mut Children<_>| {
+        write_ul(courses, race, body)?;
+        write_table(race, body)?;
+        Ok(())
+    };
+
+    page::write(format_args!("{mode} #{number}"), write, page)
 }
 
 fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> Result {
@@ -24,18 +32,13 @@ fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> 
     li.finish()?;
 
     let mut li = ul.element("li")?.children()?;
-    li.content("Course: ")?;
+    li.content("Course:")?;
     let mut a = li.element("a")?;
     a.attribute("href")?.value(format_args!("../rankings/courses"))?;
     a.content(course_name::fmt(courses, &race.course_hash))?;
     li.finish()?;
 
-    let mut li = ul.element("li")?.children()?;
-    li.content("Pack: ")?;
-    let mut a = li.element("a")?;
-    a.attribute("href")?.value(format_args!("../rankings/packs"))?;
-    a.content(pack_name::fmt(&race.pack_hash))?;
-    li.finish()?;
+    pack_link::write(&race.pack_hash, "../", &mut ul)?;
 
     ul.element("li")?.content(race.frame_rate)?;
 
@@ -61,8 +64,7 @@ fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> 
     };
     ul.element("li")?.content(content)?;
 
-    let name = if race.spectator_count == 1 { "Spectator" } else { "Spectators" };
-    ul.element("li")?.content(format_args!("{} {name}", race.spectator_count))?;
+    spectator_count::write(race.spectator_count, &mut ul)?;
 
     ul.element("li")?.content(format_args!("Start: {:.0}", race.start))?;
     ul.element("li")?.content(format_args!("End: {:.0}", race.end))?;
@@ -72,7 +74,7 @@ fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> 
 
 fn write_table(race: &mut Race, body: &mut Children<impl Write>) -> Result {
     let mut table = body.element("table")?;
-    table.attribute("id")?.value("players")?;
+    table.attribute("class")?.value("players race-players")?;
     let mut table = table.children()?;
 
     race.karts.sort_unstable_by_key(|kart| kart.result_index);
@@ -130,8 +132,10 @@ fn write_tr(race: &Race, rank: usize, kart: &Kart, table: &mut Children<impl Wri
     a.content(kart.kart)?;
     td.finish()?;
 
-    let role = if Some(kart.client_pk) == race.host_pk { "Host" } else { "" };
-    tr.element("td")?.content(role)?;
+    if let Some(host_pk) = race.host_pk {
+        let role = if kart.client_pk == host_pk { "Host" } else { "" };
+        tr.element("td")?.content(role)?;
+    }
 
     let mut stat = |title, stat, suffix| -> Result {
         let mut td = tr.element("td")?;

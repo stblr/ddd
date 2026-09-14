@@ -69,7 +69,7 @@ fn write_body<W: Write>(
 fn write_footer(body: &mut Children<impl Write>) -> Result {
     let mut footer = body.element("footer")?.children()?;
     let now = Timestamp::now().to_zoned(TimeZone::UTC);
-    let content = format_args!("Generated on {} at {:.0}", now.date(), now.time());
+    let content = format_args!("Generated on {} at {:.0} UTC", now.date(), now.time());
     footer.element("p")?.content(content)?;
     footer.finish()
 }

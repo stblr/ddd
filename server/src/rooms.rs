@@ -84,6 +84,11 @@ impl Rooms {
         ids.read_sync(&code, |_, id| *id).context("Room ID not found")
     }
 
+    pub fn iter(&self, frame_rate: FrameRate, mut f: impl FnMut(&Room) -> bool) -> bool {
+        let rooms = self.rooms_by_frame_rate(frame_rate);
+        rooms.iter_sync(|_, room| f(room))
+    }
+
     pub fn search(
         &self,
         room_slots: &mut usize,
