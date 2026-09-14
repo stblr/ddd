@@ -1,10 +1,10 @@
 use std::fmt::{self, Result, Write};
 
-use crate::base64;
 use crate::courses::Courses;
 use crate::storage::race::{Kart, Race};
 use crate::website::course_name;
 use crate::website::html::Children;
+use crate::website::pack_name;
 use crate::website::rank::Rank;
 
 pub fn write(courses: &Courses, race: &mut Race, body: &mut Children<impl Write>) -> Result {
@@ -26,17 +26,15 @@ fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> 
     let mut li = ul.element("li")?.children()?;
     li.content("Course: ")?;
     let mut a = li.element("a")?;
-    let course = base64::display(&race.course_hash);
-    a.attribute("href")?.value(format_args!("../courses/{course}"))?;
+    a.attribute("href")?.value(format_args!("../rankings/courses"))?;
     a.content(course_name::fmt(courses, &race.course_hash))?;
     li.finish()?;
 
     let mut li = ul.element("li")?.children()?;
     li.content("Pack: ")?;
     let mut a = li.element("a")?;
-    let pack = base64::display(&race.pack_hash);
-    a.attribute("href")?.value(format_args!("../packs/{pack}"))?;
-    a.content(format_args!("{pack:.12}..."))?;
+    a.attribute("href")?.value(format_args!("../rankings/packs"))?;
+    a.content(pack_name::fmt(&race.pack_hash))?;
     li.finish()?;
 
     ul.element("li")?.content(race.frame_rate)?;

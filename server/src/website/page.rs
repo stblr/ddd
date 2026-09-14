@@ -1,5 +1,8 @@
 use std::fmt::{Display, Result, Write};
 
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
+
 use crate::website::html::{Children, Element};
 
 pub fn write(
@@ -59,5 +62,14 @@ fn write_body<W: Write>(
     let mut body = html.element("body")?.children()?;
     body.element("h1")?.content(name)?;
     write(&mut body)?;
+    write_footer(&mut body)?;
     body.finish()
+}
+
+fn write_footer(body: &mut Children<impl Write>) -> Result {
+    let mut footer = body.element("footer")?.children()?;
+    let now = Timestamp::now().to_zoned(TimeZone::UTC);
+    let content = format_args!("Generated on {} at {:.0}", now.date(), now.time());
+    footer.element("p")?.content(content)?;
+    footer.finish()
 }
