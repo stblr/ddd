@@ -8,6 +8,7 @@ use crate::website::pack_link;
 use crate::website::page;
 use crate::website::rank::Rank;
 use crate::website::spectator_count;
+use crate::website::timestamp;
 
 pub fn write(courses: &Courses, race: &mut Race, page: &mut String) -> Result {
     let (mode, number) = (race.mode, race.number);
@@ -66,8 +67,8 @@ fn write_ul(courses: &Courses, race: &Race, body: &mut Children<impl Write>) -> 
 
     spectator_count::write(race.spectator_count, &mut ul)?;
 
-    ul.element("li")?.content(format_args!("Start: {:.0}", race.start))?;
-    ul.element("li")?.content(format_args!("End: {:.0}", race.end))?;
+    ul.element("li")?.content(timestamp::fmt("Started", race.start))?;
+    ul.element("li")?.content(timestamp::fmt("Ended", race.end))?;
 
     ul.finish()
 }
