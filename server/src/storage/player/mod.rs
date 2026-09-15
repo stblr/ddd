@@ -22,6 +22,7 @@ pub struct Player {
     pub index: u8,
     pub name: Name,
     pub mmrs: LinearMap<ModeIndex, u16, MODE_INDEX_COUNT>,
+    #[serde(rename = "match_count")]
     pub race_count: u64,
     #[serde(with = "required")]
     pub play_time: Duration,

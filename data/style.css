@@ -57,13 +57,13 @@ a {
     border-radius: 0 0.5rem 0.5rem 0;
 }
 
-.race-players td:nth-child(3),
-.race-players td:nth-child(4),
-.race-players td:nth-child(5),
-.race-players td:nth-child(9),
-.race-players td:nth-child(10),
-.race-players td:nth-child(11),
-.race-players td:nth-child(12),
+.match-players td:nth-child(3),
+.match-players td:nth-child(4),
+.match-players td:nth-child(5),
+.match-players td:nth-child(9),
+.match-players td:nth-child(10),
+.match-players td:nth-child(11),
+.match-players td:nth-child(12),
 .room-players td:nth-child(2) {
     text-align: right;
 }

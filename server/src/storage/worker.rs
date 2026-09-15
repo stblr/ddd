@@ -129,7 +129,7 @@ impl Worker {
         }
         race.number = self.race_number;
         self.race_number = race.number.strict_add(1);
-        self.write(race, race.number, "races")
+        self.write(race, race.number, "matches")
     }
 
     fn write_stats(&mut self, stats: &Stats) -> Result<()> {

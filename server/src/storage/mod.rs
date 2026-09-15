@@ -67,7 +67,7 @@ impl Storage {
             website_init.player_names.insert(number, name);
         }
 
-        let races_path = path.join("races");
+        let races_path = path.join("matches");
         fs::create_dir_all(&races_path)?;
         for entry in fs::read_dir(&races_path)? {
             let entry = entry?;
