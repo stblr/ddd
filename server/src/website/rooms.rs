@@ -6,6 +6,7 @@ use crate::kart::Kart;
 use crate::room::Room;
 use crate::rooms::Rooms;
 use crate::storage::PlayerId;
+use crate::website::duration::Duration;
 use crate::website::html::Children;
 use crate::website::pack_link;
 use crate::website::page;
@@ -68,6 +69,7 @@ fn write_ul(frame_rate: FrameRate, room: &Room, body: &mut Children<impl Write>)
     pack_link::write(room.pack().hash(), "", &mut ul)?;
     ul.element("li")?.content(frame_rate)?;
     spectator_count::write(room.spectator_count() as u64, &mut ul)?;
+    ul.element("li")?.content(format_args!("Uptime: {}", Duration(room.start().elapsed())))?;
     ul.finish()
 }
 

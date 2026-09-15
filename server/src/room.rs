@@ -41,6 +41,7 @@ pub struct Room {
     options: ServerRoomOptions,
     pending_clients: HashSet<PublicKey>,
     state: State,
+    start: Instant,
     rng: ChaCha20Rng,
 }
 
@@ -146,6 +147,7 @@ impl Room {
             options,
             pending_clients: HashSet::new(),
             state: State::new_room(None),
+            start: Instant::now(),
             rng: ChaCha20Rng::from_rng(rng),
         }
     }
@@ -337,6 +339,10 @@ impl Room {
             State::Poll { .. } => true,
             State::Race { .. } => true,
         }
+    }
+
+    pub const fn start(&self) -> Instant {
+        self.start
     }
 
     pub fn insert(
