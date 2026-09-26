@@ -236,6 +236,8 @@ pub fn client_course_index() -> impl ComplexDataType {
 
 pub fn client_state_race() -> impl ComplexDataType {
     let frame: SimpleDataType<u16> = SimpleDataType::new();
+    let server_frame: SimpleDataType<u16> = SimpleDataType::new();
+    let server_frames = ArrayType::new(server_frame, 0, MAX_KART_INPUT_COUNT);
     let karts = ArrayType::new(client_race_kart(), 0, MAX_CLIENT_KART_COUNT);
     let item_count: SimpleDataType<u8> = SimpleDataType::new();
     let item_counts = ArrayType::new(item_count, 16, 16);
@@ -244,6 +246,7 @@ pub fn client_state_race() -> impl ComplexDataType {
     let stability: SimpleDataType<u8> = SimpleDataType::new();
     StructType::new("ClientStateRace")
         .with_field("frame", frame)
+        .with_field("server_frames", server_frames)
         .with_field("karts", karts)
         .with_field("item_counts", item_counts)
         .with_field("delayed_frames", delayed_frames)
@@ -286,7 +289,6 @@ pub fn client_race_kart() -> impl ComplexDataType {
         .with_field("time", time)
 }
 
-pub const MAX_PLATFORM_LENGTH: usize = 31;
 pub const MAX_UPDATE_INDEX_COUNT: usize = 8;
 pub const MAX_COURSE_COUNT: usize = 224;
 pub const MAX_KART_INPUT_COUNT: usize = 30;

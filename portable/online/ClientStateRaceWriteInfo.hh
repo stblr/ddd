@@ -29,6 +29,7 @@ struct ClientStateRaceWriteInfo {
 
     u8 matchIndex;
     u16 frame;
+    Ring<u16, MaxKartInputCount> serverFrames;
     u8 kartCount;
     Array<Kart, MaxClientKartCount> karts;
     Array<u16, 16> itemCounts;

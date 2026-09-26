@@ -1,18 +1,20 @@
 use crate::format::Format;
 use crate::formats::online::client_state::*;
 use crate::formats::online::common::*;
+use crate::formats::online::replay::*;
 use crate::formats::online::server_state::*;
 use crate::simple_constant::SimpleConstant;
 
 mod client_state;
 mod common;
+mod replay;
 mod server_state;
 
 pub fn format() -> Format {
     let default_port = SimpleConstant::new("DEFAULT_PORT", 3549u16);
     let buffer_size = SimpleConstant::new("BUFFER_SIZE", 1152u16);
     let update_version = SimpleConstant::new("UPDATE_VERSION", 1u8);
-    let protocol_version = SimpleConstant::new("PROTOCOL_VERSION", 26u16);
+    let protocol_version = SimpleConstant::new("PROTOCOL_VERSION", 27u16);
     let max_lap_count = SimpleConstant::new("MAX_LAP_COUNT", 9u8);
     let min_match_count = SimpleConstant::new("MIN_MATCH_COUNT", 1u8);
     let max_match_count = SimpleConstant::new("MAX_MATCH_COUNT", 96u8);
@@ -37,6 +39,7 @@ pub fn format() -> Format {
     let mode_index_count = SimpleConstant::new("MODE_INDEX_COUNT", MODE_INDEX_COUNT);
     let max_team_count = SimpleConstant::new("MAX_TEAM_COUNT", MAX_TEAM_COUNT);
     let format_count = SimpleConstant::new("FORMAT_COUNT", FORMAT_COUNT);
+    let max_room_client_count = SimpleConstant::new("MAX_ROOM_CLIENT_COUNT", MAX_ROOM_CLIENT_COUNT);
     let max_room_kart_count = SimpleConstant::new("MAX_ROOM_KART_COUNT", MAX_ROOM_KART_COUNT);
     let max_room_player_count =
         SimpleConstant::new("MAX_ROOM_PLAYER_COUNT", MAX_ROOM_KART_COUNT * MAX_KART_PLAYER_COUNT);
@@ -48,6 +51,7 @@ pub fn format() -> Format {
     let min_stick_y = SimpleConstant::new("MIN_STICK_Y", -3i8);
     let max_stick_y = SimpleConstant::new("MAX_STICK_Y", 3i8);
     let max_time = SimpleConstant::new("MAX_TIME", 5_999_999u32);
+    let replay_magic = SimpleConstant::new("REPLAY_MAGIC", u32::from_be_bytes(*b"GKRD"));
     Format::new("Online")
         .with_constant(default_port)
         .with_constant(buffer_size)
@@ -74,6 +78,7 @@ pub fn format() -> Format {
         .with_constant(max_team_count)
         .with_constant(format_count)
         .with_constant(max_room_kart_count)
+        .with_constant(max_room_client_count)
         .with_constant(max_room_player_count)
         .with_constant(min_kart_player_count)
         .with_constant(max_kart_player_count)
@@ -83,6 +88,7 @@ pub fn format() -> Format {
         .with_constant(min_stick_y)
         .with_constant(max_stick_y)
         .with_constant(max_time)
+        .with_constant(replay_magic)
         .with_type(frame_rate())
         .with_type(mode_index())
         .with_type(room_option_code_type())
@@ -157,4 +163,8 @@ pub fn format() -> Format {
         .with_type(server_race_state())
         .with_type(server_state_race())
         .with_type(server_state())
+        .with_type(replay_client_state())
+        .with_type(replay_client())
+        .with_type(replay_race())
+        .with_type(replay())
 }

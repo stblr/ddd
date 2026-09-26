@@ -131,6 +131,11 @@ void RaceClient::calcBefore() {
 void RaceClient::calcAfter() {
     const OnlineInfo &onlineInfo = OnlineInfo::Instance();
     u32 frame = Frame();
+    while (m_writeInfo.serverFrames.count() >= frame - m_clientFrame) {
+        assert(m_writeInfo.serverFrames.popFront());
+    }
+    u16 serverFrame = Min(m_serverFrame, m_clientFrame);
+    m_writeInfo.serverFrames.pushBack(serverFrame);
     for (u32 i = 0; i < m_writeInfo.kartCount; i++) {
         WriteInfo::Kart &kart = m_writeInfo.karts[i];
         while (kart.inputs.count() >= frame - m_clientFrame) {

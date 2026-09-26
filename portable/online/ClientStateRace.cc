@@ -376,6 +376,14 @@ u16 ClientStateRace::getFrame() {
     return m_writeInfo.frame;
 }
 
+u32 ClientStateRace::getServerFramesCount() {
+    return m_writeInfo.serverFrames.count();
+}
+
+u16 ClientStateRace::getServerFramesElement(u32 i0) {
+    return m_writeInfo.serverFrames[i0];
+}
+
 u32 ClientStateRace::getKartsCount() {
     return m_writeInfo.kartCount;
 }
