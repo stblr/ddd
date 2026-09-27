@@ -23,6 +23,7 @@ pub fn replay_race() -> impl ComplexDataType {
     let clients = ArrayType::new(replay_client(), 1, MAX_ROOM_CLIENT_COUNT);
     let time: SimpleDataType<u64> = SimpleDataType::new();
     StructType::new("ReplayRace")
+        .with_field("frame_rate", frame_rate())
         .with_field("mode_index", mode_index())
         .with_field("pack_course_count", pack_course_count)
         .with_field("pack_hash", pack_hash)
@@ -32,6 +33,8 @@ pub fn replay_race() -> impl ComplexDataType {
 }
 
 pub fn replay_client() -> impl ComplexDataType {
+    let pk_element: SimpleDataType<u8> = SimpleDataType::new();
+    let pk = ArrayType::new(pk_element, 32, 32);
     let region: SimpleDataType<u8> = SimpleDataType::new();
     let platform_element: SimpleDataType<u8> = SimpleDataType::new();
     let platform = ArrayType::new(platform_element, 0, MAX_PLATFORM_LENGTH);
@@ -42,7 +45,7 @@ pub fn replay_client() -> impl ComplexDataType {
     );
     let kart_count: SimpleDataType<u8> = SimpleDataType::new();
     StructType::new("ReplayClient")
-        .with_field("frame_rate", frame_rate())
+        .with_field("pk", pk)
         .with_field("region", region)
         .with_field("platform", platform)
         .with_field("players", players)

@@ -12,6 +12,7 @@
 #include "payload/network/CubeDNS.hh"
 #include "payload/online/ClientK.hh"
 #include "payload/online/CubeServerManager.hh"
+#include "payload/online/ReplayManager.hh"
 
 #include <cube/Clock.hh>
 #include <cube/CubeLogger.hh>
@@ -56,6 +57,10 @@ void Payload::Run(Context *context) {
     INFO("Initializing server manager...");
     CubeServerManager::Init();
     INFO("Initialized server manager.");
+
+    INFO("Initializing replay manager...");
+    ReplayManager::Init();
+    INFO("Initialized replay manager.");
 
     INFO("Initializing virtual memory cards...");
     VirtualCard::Init();

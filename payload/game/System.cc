@@ -23,6 +23,7 @@ extern "C" {
 #include <payload/PayloadBinary.hh>
 #include <payload/PerfOverlay.hh>
 #include <payload/online/CubeServerManager.hh>
+#include <payload/online/ReplayManager.hh>
 #include <portable/Log.hh>
 
 void System::Init() {
@@ -50,6 +51,9 @@ void System::Init() {
     const u8 *serverManagerStart = reinterpret_cast<u8 *>(CubeServerManager::Instance());
     const u8 *serverManagerEnd = serverManagerStart + sizeof(ServerManager);
     DEBUG("%p %p ServerManager", serverManagerStart, serverManagerEnd);
+    const u8 *replayManagerStart = reinterpret_cast<u8 *>(ReplayManager::Instance());
+    const u8 *replayManagerEnd = replayManagerStart + sizeof(ReplayManager);
+    DEBUG("%p %p ReplayManager", replayManagerStart, replayManagerEnd);
     const JKRHeap *systemHeap = JKRHeap::GetSystemHeap();
     DEBUG("%p %p SystemHeap", systemHeap->getStartAddr(), systemHeap->getEndAddr());
     DEBUG("%p %p AppHeap", s_appHeap->getStartAddr(), s_appHeap->getEndAddr());

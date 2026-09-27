@@ -24,7 +24,7 @@ use crate::pack::Pack;
 use crate::race_client_stats::RaceClientStats;
 use crate::results;
 use crate::storage::race;
-use crate::storage::{Player, Race, Storage};
+use crate::storage::{Batch, Player, Race, Storage};
 
 #[derive(Debug)]
 pub struct Room {
@@ -650,8 +650,8 @@ impl Room {
             let min_input_count = client_frame - kart_frame;
             let client_inputs = &client_kart.inputs;
             let inputs = &inputs[kart_index];
-            anyhow::ensure!(client_inputs.len() == client_server_frames.len());
             anyhow::ensure!(client_inputs.len() == inputs.len());
+            anyhow::ensure!(client_inputs[0].len() == client_server_frames.len());
             anyhow::ensure!(client_inputs[0].len() >= min_input_count as usize);
             for [ci0, ci1] in client_inputs.array_windows() {
                 anyhow::ensure!(ci0.len() == ci1.len());
@@ -913,13 +913,14 @@ impl Room {
                 team_state,
                 match_index,
                 match_start,
-                match_end,
                 poll_state,
+                clients,
+                inputs,
                 karts,
                 states,
                 end_frame,
                 results,
-                clients,
+                batch,
                 ..
             } => {
                 let frame = states.len() as u16;
@@ -930,49 +931,25 @@ impl Room {
                 } else if count != 0 {
                     *end_frame = (*end_frame).min(frame.saturating_add(30 * 60));
                 }
-                if results.is_empty() && frame >= *end_frame + 5 * 60 {
-                    *results = results::compute(&self.karts, karts);
-                    let match_start = SystemTime::from(*match_start);
-                    let match_end = match_end.get_or_insert_with(Timestamp::now);
-                    let match_end = SystemTime::from(*match_end);
-                    let match_duration = match_end.duration_since(match_start).unwrap_or_default();
+                if batch.is_none() && frame >= *end_frame + 5 * 60 {
+                    let results = results::compute(&self.karts, karts);
+                    let match_end = Timestamp::now();
+                    let match_duration = SystemTime::from(match_end)
+                        .duration_since(SystemTime::from(*match_start))
+                        .unwrap_or_default();
                     for kart in &mut self.karts {
                         for player in kart.players_mut() {
                             player.match_count += 1;
                             player.play_time += match_duration;
                         }
                     }
-                }
-                let kart_flags = karts
-                    .iter()
-                    .enumerate()
-                    .map(|(i, kart)| u8::from(kart.is_some()) << i)
-                    .fold(0, BitOr::bitor);
-                let state = ServerRaceStateMain {
-                    match_index: *match_index,
-                    frame,
-                    client_frame: frame,
-                    kart_flags,
-                    karts: karts.iter().filter_map(Clone::clone).collect(),
-                    end_frame: *end_frame,
-                    results: results.clone(),
-                };
-                anyhow::ensure!(states.len() < u16::MAX as usize);
-                states.push(state);
-                for kart in karts {
-                    let Some(kart) = kart else { continue };
-                    kart.item_events.retain_mut(|item_event| {
-                        item_event.event_frame += 1;
-                        item_event.event_frame < MAX_KART_INPUT_COUNT as u8
-                    });
-                }
-                let continuing = if let Some(match_end) = match_end {
+
                     let kart = |(i, kart): (_, &Kart)| {
                         let players = kart
                             .players()
                             .iter()
                             .map(|player| race::Player {
-                                index: player.index(),
+                                profile: player.profile,
                                 number: 0,
                                 name: player.name(),
                                 mmr: *player.mmrs.get(&self.mode_index).unwrap_or(&0),
@@ -1018,7 +995,7 @@ impl Room {
                             kart.players().iter().map(|player| Player {
                                 number: 0,
                                 client_pk: *kart.client_pk(),
-                                index: player.index(),
+                                profile: player.profile,
                                 name: player.name(),
                                 mmrs: player.mmrs.clone(),
                                 race_count: player.match_count,
@@ -1051,12 +1028,48 @@ impl Room {
                         start: *match_start,
                         selected_kart_index: poll_state.selected_kart_index,
                         course_hash: self.pack.courses()[selected_course_index as usize],
-                        end: *match_end,
+                        end: match_end,
                     };
-                    storage.store(players, race).is_ok()
-                } else {
-                    false
+                    *batch = Some(Batch {
+                        clients: LinearMap::new(),
+                        inputs: heapless::Vec::new(),
+                        players,
+                        race,
+                    });
+                }
+                let kart_flags = karts
+                    .iter()
+                    .enumerate()
+                    .map(|(i, kart)| u8::from(kart.is_some()) << i)
+                    .fold(0, BitOr::bitor);
+                let state = ServerRaceStateMain {
+                    match_index: *match_index,
+                    frame,
+                    client_frame: frame,
+                    kart_flags,
+                    karts: karts.iter().filter_map(Clone::clone).collect(),
+                    end_frame: *end_frame,
+                    results: results.clone(),
                 };
+                anyhow::ensure!(states.len() < u16::MAX as usize);
+                states.push(state);
+                for kart in karts {
+                    let Some(kart) = kart else { continue };
+                    kart.item_events.retain_mut(|item_event| {
+                        item_event.event_frame += 1;
+                        item_event.event_frame < MAX_KART_INPUT_COUNT as u8
+                    });
+                }
+                let continuing = batch.take().is_some_and(|mut b| {
+                    mem::swap(clients, &mut b.clients);
+                    mem::swap(inputs, &mut b.inputs);
+                    *batch = storage.store(b);
+                    if let Some(batch) = batch {
+                        mem::swap(clients, &mut batch.clients);
+                        mem::swap(inputs, &mut batch.inputs);
+                    }
+                    batch.is_none()
+                });
                 if continuing {
                     for result in results {
                         self.karts[result.kart_index as usize].points = result.points;
@@ -1097,6 +1110,7 @@ pub struct CodePair {
 }
 
 #[derive(Debug)]
+#[expect(clippy::large_enum_variant)]
 enum State {
     Room {
         deadline: Instant,
@@ -1120,15 +1134,15 @@ enum State {
         team_state: Option<ServerTeamStateMain>,
         match_index: u8,
         match_start: Timestamp,
-        match_end: Option<Timestamp>,
         poll_state: ServerPollStateReady,
-        clients: heapless::LinearMap<PublicKey, RaceClient, MAX_ROOM_CLIENT_COUNT>,
+        clients: LinearMap<PublicKey, RaceClient, MAX_ROOM_CLIENT_COUNT>,
         inputs: heapless::Vec<Inputs, MAX_ROOM_KART_COUNT>,
         karts: heapless::Vec<Option<ServerRaceKart>, MAX_ROOM_KART_COUNT>,
         states: Vec<ServerRaceStateMain>,
         lightning_available_frame: Option<u16>,
         end_frame: u16,
         results: heapless::Vec<ServerResult, MAX_ROOM_KART_COUNT>,
+        batch: Option<Batch>,
     },
 }
 
@@ -1193,7 +1207,6 @@ impl State {
             team_state,
             match_index,
             match_start,
-            match_end: None,
             poll_state: ServerPollStateReady { match_index, karts, selected_kart_index },
             clients: LinearMap::new(),
             inputs,
@@ -1202,14 +1215,15 @@ impl State {
             lightning_available_frame: Some(MIN_CLIENT_FRAME + 30 * 60),
             end_frame: MIN_CLIENT_FRAME + 15 * 60 * 60,
             results: heapless::Vec::new(),
+            batch: None,
         }
     }
 }
 
 #[derive(Debug, Default)]
-struct RaceClient {
+pub struct RaceClient {
     server_frames: Vec<u16>,
     stats: RaceClientStats,
 }
 
-type Inputs = heapless::Vec<Vec<u16>, MAX_KART_PLAYER_COUNT>;
+pub type Inputs = heapless::Vec<Vec<u16>, MAX_KART_PLAYER_COUNT>;

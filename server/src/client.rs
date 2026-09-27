@@ -149,9 +149,11 @@ impl Client {
                 State::Update { identity, state: update.client_update_state }
             }
             (ClientState::Mode(_), Some(identity), _) => {
-                let mmrs = (0..identity.players.len())
-                    .map(|i| {
-                        let id = PlayerId { client_pk: self.pk, index: i as u8 };
+                let mmrs = identity
+                    .players
+                    .iter()
+                    .map(|player| {
+                        let id = PlayerId { client_pk: self.pk, profile: player.profile };
                         storage
                             .read_player(&id, |player| player.map(|p| p.mmrs.clone()))
                             .unwrap_or_default()
@@ -171,9 +173,11 @@ impl Client {
                             let player = |i| {
                                 let index = i as u8;
                                 let player: &ClientPlayer = &players[i];
+                                let profile = player.profile;
                                 let name = player.name;
-                                let id = PlayerId { client_pk: self.pk, index };
+                                let id = PlayerId { client_pk: self.pk, profile };
                                 storage.read_player(&id, |player| Player {
+                                    profile,
                                     player: ServerPlayer { index, name },
                                     mmrs: player.map_or(LinearMap::new(), |p| p.mmrs.clone()),
                                     match_count: player.map_or(0, |p| p.race_count),
