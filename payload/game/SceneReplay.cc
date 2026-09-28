@@ -11,10 +11,14 @@
 #include "game/SequenceApp.hh"
 #include "game/System.hh"
 
+extern "C" {
+#include <dolphin/OSTime.h>
+}
 #include <jsystem/J2DAnmLoaderDataBase.hh>
 #include <payload/CourseManager.hh>
 #include <payload/Lock.hh>
 #include <payload/online/CubeClient.hh>
+#include <payload/online/ReplayManager.hh>
 #include <portable/Algorithm.hh>
 #include <portable/UTF8.hh>
 
@@ -82,6 +86,7 @@ SceneReplay::SceneReplay(JKRArchive *archive, JKRHeap *heap) : Scene(archive, he
     m_downloadAnmTransformFrame = 0;
     m_selectAnmTransformFrame = 10;
     m_replayAnmTransformFrames.fill(0);
+    m_playerAnmTransformFrames.fill(1);
     m_arrowAlphas.fill(0);
     m_replayAlphas.fill(0);
 }
@@ -99,7 +104,7 @@ void SceneReplay::init() {
 
     System::GetDisplay()->startFadeIn(15);
 
-    if (CourseManager::Instance()->lock()) {
+    if (ReplayManager::Instance()->lock() && CourseManager::Instance()->lock()) {
         slideIn();
     } else {
         wait();
@@ -163,9 +168,6 @@ void SceneReplay::calc() {
                 m_replayAnmTransformFrames[i]--;
             }
         }
-        for (u32 j = 0; j < 8; j++) {
-            m_playerAnmTransformFrames[i][j] = j % 2 ? 2 : 1;
-        }
     }
 
     m_mainAnmTransform->m_frame = m_mainAnmTransformFrame;
@@ -189,7 +191,7 @@ void SceneReplay::calc() {
         m_replayScreens[i].search("GDCurs1")->setAlpha(m_replayAlphas[i]);
         m_replayScreens[i].search("Mode")->setAlpha(m_replayAlphas[i]);
         m_replayScreens[i].search("Logo")->setAlpha(m_replayAlphas[i]);
-        for (u32 j = 0; j < 19; j++) {
+        for (u32 j = 0; j < 23; j++) {
             m_replayScreens[i].search("Time%u", j)->setAlpha(m_replayAlphas[i]);
         }
         for (u32 j = 0; j < m_playerScreens[i].count(); j++) {
@@ -219,8 +221,8 @@ void SceneReplay::wait() {
 }
 
 void SceneReplay::slideIn() {
-    const CourseManager *courseManager = CourseManager::Instance();
-    m_replayCount = courseManager->courseCount(false, true, 0);
+    const ReplayManager *replayManager = ReplayManager::Instance();
+    m_replayCount = replayManager->replayCount();
     m_replayIndex = 0;
     m_rowIndex = m_replayIndex;
     m_rowIndex = Min(m_rowIndex, m_replayCount - Min<u32>(m_replayCount, 5));
@@ -263,7 +265,6 @@ void SceneReplay::scrollUp() {
     m_rowIndex--;
     m_mainAnmTransformFrame = 46;
     m_replayAnmTransformFrames.rotateRight(1);
-    m_playerAnmTransformFrames.rotateRight(1);
     m_replayAlphas.rotateRight(1);
     refreshReplays();
     m_state = &SceneReplay::stateScrollUp;
@@ -366,7 +367,6 @@ void SceneReplay::stateScrollDown() {
         m_rowIndex++;
         m_mainAnmTransformFrame = 39;
         m_replayAnmTransformFrames.rotateLeft(1);
-        m_playerAnmTransformFrames.rotateLeft(1);
         m_replayAlphas.rotateLeft(1);
         refreshReplays();
         idle();
@@ -383,22 +383,42 @@ void SceneReplay::stateNextScene() {
 
 void SceneReplay::refreshReplays() {
     Kart2DCommon *kart2DCommon = Kart2DCommon::Instance();
+    const ReplayManager *replayManager = ReplayManager::Instance();
     for (u32 i = 0; i < m_replayScreens.count(); i++) {
         u32 replayIndex = m_rowIndex + i;
         if (replayIndex >= m_replayCount) {
             break;
         }
+        const ReplayManager::Replay &replay = replayManager->replay(replayIndex);
         J2DScreen &screen = m_replayScreens[i];
         J2DPicture *modePicture = m_replayScreens[i].search("Mode")->downcast<J2DPicture>();
-        modePicture->changeTexture(ModeIconTextureNames[replayIndex % ModeIndexCount], 0);
+        modePicture->changeTexture(ModeIconTextureNames[replay.modeIndex], 0);
         J2DPicture *logoPicture = m_replayScreens[i].search("Logo")->downcast<J2DPicture>();
         logoPicture->m_isVisible = false;
         logoPicture->changeTexture("SelCourse_Pict_Box1.bti", 0);
-        kart2DCommon->changeUnicodeTexture("2026-05-25 18:00:12", 19, screen, "Time", false);
+        OSCalendarTime time;
+        OSTicksToCalendarTime(replay.time, &time);
+        char timeText[24];
+        snprintf(timeText, Count(timeText), "%04d-%02d-%02d %02d:%02d:%02d UTC", time.year,
+                time.mon + 1, time.mday, time.hour, time.min, time.sec);
+        kart2DCommon->changeUnicodeTexture(timeText, 23, screen, "Time", false);
+        const char *names[8][4] = {};
+        for (u32 j = 0, k = 0; j < replay.clients.count(); j++) {
+            const ReplayManager::Client &client = replay.clients[j];
+            u32 tandemCount = client.players.count() - client.kartCount;
+            for (u32 l = 0; l < client.kartCount; k++, l++) {
+                if (k < tandemCount) {
+                    names[k][0] = client.players[l / 2 + 0].name.values();
+                    names[k][1] = client.players[l / 2 + 1].name.values();
+                } else {
+                    names[k][0] = client.players[l + tandemCount].name.values();
+                }
+            }
+        }
         for (u32 j = 0; j < m_playerScreens[i].count(); j++) {
             J2DScreen &screen = m_playerScreens[i][j];
             for (u32 k = 0; k < 2; k++) {
-                const char *name = k == 0 ? "ABC" : j % 2 ? "DEF" : "   ";
+                const char *name = names[j][k] ? names[j][k] : "   ";
                 char prefix[32];
                 snprintf(prefix, Count(prefix), "PName%" PRIu32, k);
                 kart2DCommon->changeUnicodeTexture(name, 3, screen, prefix);
@@ -410,6 +430,7 @@ void SceneReplay::refreshReplays() {
                     picture->m_cornerColors = cornerColors;
                 }
             }
+            m_playerAnmTransformFrames[i][j] = names[j][1] ? 2 : 1;
         }
     }
 

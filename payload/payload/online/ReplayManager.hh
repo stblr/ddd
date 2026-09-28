@@ -30,8 +30,12 @@ public:
         Hash packHash;
         u8 courseIndex;
         Ring<Client, MaxRoomClientCount> clients;
-        u64 time;
+        s64 time;
+        u8 kartCount;
     };
+
+    u32 replayCount() const;
+    const Replay &replay(u32 index) const;
 
     bool isMagicValid(u32 magic);
     void setMagic(u32 magic);

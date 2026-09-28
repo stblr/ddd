@@ -1,12 +1,21 @@
 #include "ReplayManager.hh"
 
 #include <cube/Arena.hh>
+#include <cube/Clock.hh>
 #include <portable/Algorithm.hh>
 #include <portable/Log.hh>
 
 extern "C" {
 #include <stdio.h>
 #include <string.h>
+}
+
+u32 ReplayManager::replayCount() const {
+    return m_replays.count();
+}
+
+const ReplayManager::Replay &ReplayManager::replay(u32 index) const {
+    return m_replays[index];
 }
 
 bool ReplayManager::isMagicValid(u32 magic) {
@@ -86,7 +95,8 @@ bool ReplayManager::isTimeValid(u64 /* time */) {
 }
 
 void ReplayManager::setTime(u64 time) {
-    m_replay->time = time;
+    s64 epoch = 946684800; // 2000-01-01
+    m_replay->time = Clock::SecondsToTicks(time - epoch);
 }
 
 bool ReplayManager::isPkElementValid(u32 /* i0 */, u8 /* pkElement */) {
@@ -134,7 +144,9 @@ bool ReplayManager::isKartCountValid(u8 /* kartCount */) {
     return true;
 }
 
-void ReplayManager::setKartCount(u8 /* kartCount */) {}
+void ReplayManager::setKartCount(u8 kartCount) {
+    m_replay->clients[m_clientIndex].kartCount = kartCount;
+}
 
 bool ReplayManager::isProfileValid(u8 /* profile */) {
     return true;
@@ -210,6 +222,22 @@ void ReplayManager::addReplay(const Array<char, 256> &path) {
         return;
     }
     if (!ReplayRaceReader::isValid(buffer, size, offset)) {
+        return;
+    }
+    offset = 0;
+    ReplayReader::read(buffer, offset);
+    ReplayRaceReader::read(buffer, offset);
+
+    m_replay->kartCount = 0;
+    for (u32 i = 0; i < m_replay->clients.count(); i++) {
+        const Client &client = m_replay->clients[i];
+        if (client.kartCount * 2 < client.players.count() ||
+                client.kartCount > client.players.count()) {
+            return;
+        }
+        m_replay->kartCount++;
+    }
+    if (m_replay->kartCount > MaxRoomKartCount) {
         return;
     }
 

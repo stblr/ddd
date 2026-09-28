@@ -519,7 +519,7 @@ void SceneServerSelect::stateNextScene() {
 
 void SceneServerSelect::refreshServers() {
     Kart2DCommon *kart2DCommon = Kart2DCommon::Instance();
-    CubeServerManager *serverManager = CubeServerManager::Instance();
+    const CubeServerManager *serverManager = CubeServerManager::Instance();
     for (u32 i = 0; i < 6; i++) {
         u32 serverIndex = m_rowIndex + i;
         if (serverIndex >= m_serverCount) {
