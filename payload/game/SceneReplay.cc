@@ -221,7 +221,8 @@ void SceneReplay::wait() {
 }
 
 void SceneReplay::slideIn() {
-    const ReplayManager *replayManager = ReplayManager::Instance();
+    ReplayManager *replayManager = ReplayManager::Instance();
+    replayManager->filterAndSort();
     m_replayCount = replayManager->replayCount();
     m_replayIndex = 0;
     m_rowIndex = m_replayIndex;
@@ -402,17 +403,19 @@ void SceneReplay::refreshReplays() {
         snprintf(timeText, Count(timeText), "%04d-%02d-%02d %02d:%02d:%02d UTC", time.year,
                 time.mon + 1, time.mday, time.hour, time.min, time.sec);
         kart2DCommon->changeUnicodeTexture(timeText, 23, screen, "Time", false);
-        const char *names[8][4] = {};
+        const char *names[MaxRoomKartCount][4] = {};
+        u32 teams[MaxRoomKartCount];
         for (u32 j = 0, k = 0; j < replay.clients.count(); j++) {
             const ReplayManager::Client &client = replay.clients[j];
-            u32 tandemCount = client.players.count() - client.kartCount;
-            for (u32 l = 0; l < client.kartCount; k++, l++) {
+            u32 tandemCount = client.players.count() - client.teams.count();
+            for (u32 l = 0; l < client.teams.count(); k++, l++) {
                 if (k < tandemCount) {
                     names[k][0] = client.players[l / 2 + 0].name.values();
                     names[k][1] = client.players[l / 2 + 1].name.values();
                 } else {
                     names[k][0] = client.players[l + tandemCount].name.values();
                 }
+                teams[k] = client.teams[l];
             }
         }
         for (u32 j = 0; j < m_playerScreens[i].count(); j++) {
@@ -423,7 +426,10 @@ void SceneReplay::refreshReplays() {
                 snprintf(prefix, Count(prefix), "PName%" PRIu32, k);
                 kart2DCommon->changeUnicodeTexture(name, 3, screen, prefix);
             }
-            J2DPicture::CornerColors cornerColors = Race2D::GetCornerColors(j % 8);
+            if (j >= replay.kartCount) {
+                continue;
+            }
+            J2DPicture::CornerColors cornerColors = Race2D::GetCornerColors(teams[j]);
             for (u32 k = 0; k < 2; k++) {
                 for (u32 l = 0; l < 3; l++) {
                     J2DPicture *picture = screen.search("PName%u%u", k, l)->downcast<J2DPicture>();
@@ -510,14 +516,16 @@ void *SceneReplay::load() {
 }
 
 bool SceneReplay::load(const Array<u32, 12> &nextReplayIndices) {
+    const ReplayManager *replayManager = ReplayManager::Instance();
     const CourseManager *courseManager = CourseManager::Instance();
     for (u32 i = 0; i < nextReplayIndices.count(); i++) {
         u32 replayIndex = nextReplayIndices[i];
         if (replayIndex >= m_replayCount) {
             continue;
         }
-        const CourseManager::Course &course =
-                courseManager->courseByHash(false, true, 0, replayIndex);
+        const ReplayManager::Replay &replay = replayManager->replay(replayIndex);
+        const CourseManager::Course &course = courseManager->courseByHash(true, replay.isRace,
+                replay.packIndex, replay.courseIndex);
         UniquePtr<ResTIMG> &logo = findLogo(nextReplayIndices, replayIndex);
         if (!logo.get()) {
             void *texture = course.loadLogo(m_heap);

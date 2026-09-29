@@ -19,7 +19,7 @@ pub fn write(race: &Race, buf: &mut Vec<u8>) {
                     region: kart.region.into(),
                     platform: kart.platform.clone().into(),
                     players: heapless::Vec::new(),
-                    kart_count: 0,
+                    teams: heapless::Vec::new(),
                 })
                 .unwrap();
             client_pk = Some(kart.client_pk);
@@ -31,7 +31,7 @@ pub fn write(race: &Race, buf: &mut Vec<u8>) {
                 .push(ClientPlayer { profile: player.profile, name: player.name.0 })
                 .unwrap();
         }
-        client.kart_count += 1;
+        client.teams.push(kart.team).unwrap();
     }
     let time = SystemTime::from(race.end)
         .duration_since(SystemTime::UNIX_EPOCH)

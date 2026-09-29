@@ -1,13 +1,35 @@
 #include "ReplayManager.hh"
 
+#include "payload/CourseManager.hh"
+
 #include <cube/Arena.hh>
 #include <cube/Clock.hh>
+#include <game/Modes.hh>
 #include <portable/Algorithm.hh>
 #include <portable/Log.hh>
 
 extern "C" {
 #include <stdio.h>
 #include <string.h>
+}
+
+void ReplayManager::filterAndSort() {
+    CourseManager *courseManager = CourseManager::Instance();
+    for (u32 i = 0; i < m_replays.count();) {
+        Replay &replay = m_replays[i];
+        u32 raceMode = Modes[replay.modeIndex];
+        replay.isRace = RaceMode::IsRace(raceMode);
+        Optional<u32> packIndex = courseManager->searchPack(true, replay.isRace,
+                replay.packCourseCount, replay.packHash);
+        if (packIndex &&
+                replay.courseIndex < courseManager->courseCount(true, replay.isRace, *packIndex)) {
+            replay.packIndex = *packIndex;
+            i++;
+        } else {
+            m_replays.swapRemoveBack(i);
+        }
+    }
+    Sort(m_replays, m_replays.count(), CompareReplaysByTime);
 }
 
 u32 ReplayManager::replayCount() const {
@@ -140,12 +162,23 @@ ClientPlayerReader<ReplayManager> *ReplayManager::playersElementReader(u32 i0) {
     return this;
 }
 
-bool ReplayManager::isKartCountValid(u8 /* kartCount */) {
+bool ReplayManager::isTeamsCountValid(u32 /* teamsCount */) {
     return true;
 }
 
-void ReplayManager::setKartCount(u8 kartCount) {
-    m_replay->clients[m_clientIndex].kartCount = kartCount;
+void ReplayManager::setTeamsCount(u32 teamsCount) {
+    m_replay->clients[m_clientIndex].teams.reset();
+    for (u32 i = 0; i < teamsCount; i++) {
+        m_replay->clients[m_clientIndex].teams.emplaceBack();
+    }
+}
+
+bool ReplayManager::isTeamsElementValid(u32 /* i0 */, u8 /* teamsElement */) {
+    return true;
+}
+
+void ReplayManager::setTeamsElement(u32 i0, u8 teamsElement) {
+    m_replay->clients[m_clientIndex].teams[i0] = teamsElement;
 }
 
 bool ReplayManager::isProfileValid(u8 /* profile */) {
@@ -231,11 +264,11 @@ void ReplayManager::addReplay(const Array<char, 256> &path) {
     m_replay->kartCount = 0;
     for (u32 i = 0; i < m_replay->clients.count(); i++) {
         const Client &client = m_replay->clients[i];
-        if (client.kartCount * 2 < client.players.count() ||
-                client.kartCount > client.players.count()) {
+        if (client.teams.count() * 2 < client.players.count() ||
+                client.teams.count() > client.players.count()) {
             return;
         }
-        m_replay->kartCount++;
+        m_replay->kartCount += client.teams.count();
     }
     if (m_replay->kartCount > MaxRoomKartCount) {
         return;
@@ -243,6 +276,10 @@ void ReplayManager::addReplay(const Array<char, 256> &path) {
 
     DEBUG("Adding replay %s...", path.values());
     m_replay = m_replays.emplaceBack();
+}
+
+bool ReplayManager::CompareReplaysByTime(const Replay &a, const Replay &b) {
+    return a.time > b.time;
 }
 
 ReplayManager *ReplayManager::s_instance = nullptr;

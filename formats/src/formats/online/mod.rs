@@ -25,6 +25,7 @@ pub fn format() -> Format {
         SimpleConstant::new("MIN_CLIENT_PLAYER_COUNT", MIN_CLIENT_PLAYER_COUNT);
     let max_client_player_count =
         SimpleConstant::new("MAX_CLIENT_PLAYER_COUNT", MAX_CLIENT_PLAYER_COUNT);
+    let min_client_kart_count = SimpleConstant::new("MIN_CLIENT_KART_COUNT", MIN_CLIENT_KART_COUNT);
     let max_client_kart_count = SimpleConstant::new("MAX_CLIENT_KART_COUNT", MAX_CLIENT_KART_COUNT);
     let kart_character_count = SimpleConstant::new("KART_CHARACTER_COUNT", KART_CHARACTER_COUNT);
     let player_name_length = SimpleConstant::new("PLAYER_NAME_LENGTH", PLAYER_NAME_LENGTH);
@@ -65,6 +66,7 @@ pub fn format() -> Format {
         .with_constant(max_platform_length)
         .with_constant(min_client_player_count)
         .with_constant(max_client_player_count)
+        .with_constant(min_client_kart_count)
         .with_constant(max_client_kart_count)
         .with_constant(kart_character_count)
         .with_constant(player_name_length)

@@ -83,6 +83,9 @@ impl Storage {
             website_init.stats.add(&race);
         }
 
+        let replays_path = path.join("replays");
+        fs::create_dir_all(&replays_path)?;
+
         let stats_path = path.join("stats");
         fs::create_dir_all(&stats_path)?;
         for entry in fs::read_dir(&stats_path)? {

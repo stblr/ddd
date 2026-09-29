@@ -169,7 +169,7 @@ impl Worker {
                 replay::write(race, buf);
                 Ok(())
             },
-            "matches",
+            "replays",
         )
     }
 

@@ -21,7 +21,7 @@ public:
 
     struct Client {
         Ring<Player, MaxClientPlayerCount> players;
-        u8 kartCount;
+        Ring<u8, MaxRoomKartCount> teams;
     };
 
     struct Replay {
@@ -32,7 +32,11 @@ public:
         Ring<Client, MaxRoomClientCount> clients;
         s64 time;
         u8 kartCount;
+        bool isRace;
+        u8 packIndex;
     };
+
+    void filterAndSort();
 
     u32 replayCount() const;
     const Replay &replay(u32 index) const;
@@ -71,8 +75,10 @@ public:
     bool isPlayersCountValid(u32 playersCount);
     void setPlayersCount(u32 playersCount);
     ClientPlayerReader *playersElementReader(u32 i0);
-    bool isKartCountValid(u8 kartCount);
-    void setKartCount(u8 kartCount);
+    bool isTeamsCountValid(u32 teamsCount);
+    void setTeamsCount(u32 teamsCount);
+    bool isTeamsElementValid(u32 i0, u8 teamsElement);
+    void setTeamsElement(u32 i0, u8 teamsElement);
 
     bool isProfileValid(u8 profile);
     void setProfile(u8 profile);
@@ -90,6 +96,8 @@ private:
 
     void addReplays(Array<char, 256> &path, Storage::NodeInfo &nodeInfo);
     void addReplay(const Array<char, 256> &path);
+
+    static bool CompareReplaysByTime(const Replay &a, const Replay &b);
 
     Ring<Replay, MaxReplayCount> m_replays;
     Replay *m_replay;
