@@ -227,6 +227,7 @@ void SceneReplay::slideIn() {
     m_replayIndex = 0;
     m_rowIndex = m_replayIndex;
     m_rowIndex = Min(m_rowIndex, m_replayCount - Min<u32>(m_replayCount, 5));
+    m_clientIndex = 0;
 
     MenuTitleLine::Instance()->drop("Replays.bti");
     for (u32 i = 0; i < m_replayAlphas.count(); i++) {
@@ -245,7 +246,7 @@ void SceneReplay::slideIn() {
     m_loadStack.reset(new (m_heap, 0x8) u8[stackSize]);
     OSCreateThread(&m_loadThread, Load, this, m_loadStack.get() + stackSize, stackSize, 25, 0);
     OSResumeThread(&m_loadThread);
-    refreshReplays();
+    refreshReplays(false);
     m_state = &SceneReplay::stateSlideIn;
 }
 
@@ -267,7 +268,7 @@ void SceneReplay::scrollUp() {
     m_mainAnmTransformFrame = 46;
     m_replayAnmTransformFrames.rotateRight(1);
     m_replayAlphas.rotateRight(1);
-    refreshReplays();
+    refreshReplays(false);
     m_state = &SceneReplay::stateScrollUp;
 }
 
@@ -277,11 +278,28 @@ void SceneReplay::scrollDown() {
     m_state = &SceneReplay::stateScrollDown;
 }
 
+void SceneReplay::selectIn() {
+    m_clientCount = ReplayManager::Instance()->replay(m_replayIndex).clients.count();
+    refreshReplays(true);
+    m_selectAnmTransformFrame = 11;
+    m_state = &SceneReplay::stateSelectIn;
+}
+
+void SceneReplay::selectOut() {
+    refreshReplays(false);
+    m_selectAnmTransformFrame = 18;
+    m_state = &SceneReplay::stateSelectOut;
+}
+
+void SceneReplay::select() {
+    m_state = &SceneReplay::stateSelect;
+}
+
 void SceneReplay::nextScene() {
     for (u32 i = 0; i < m_logos.count(); i++) {
         m_logos[i].reset();
     }
-    refreshReplays();
+    refreshReplays(false);
     m_state = &SceneReplay::stateNextScene;
 }
 
@@ -320,6 +338,8 @@ void SceneReplay::stateSlideOut() {
 void SceneReplay::stateIdle() {
     const JUTGamePad::CButton &button = KartGamePad::GamePad(0)->button();
     if (button.risingEdge() & PAD_BUTTON_A) {
+        GameAudio::Main::Instance()->startSystemSe(SoundID::JA_SE_TR_DECIDE_LITTLE);
+        selectIn();
     } else if (button.risingEdge() & PAD_BUTTON_B) {
         m_nextScene = SceneType::Title;
         GameAudio::Main::Instance()->fadeOutAll(15);
@@ -338,6 +358,7 @@ void SceneReplay::stateIdle() {
             } else {
                 m_replayIndex--;
             }
+            m_clientIndex = 0;
         }
     } else if (button.repeat() & JUTGamePad::PAD_MSTICK_DOWN) {
         if (m_replayIndex + 1 < m_replayCount) {
@@ -347,6 +368,7 @@ void SceneReplay::stateIdle() {
             } else {
                 m_replayIndex++;
             }
+            m_clientIndex = 0;
         }
     }
 }
@@ -369,8 +391,42 @@ void SceneReplay::stateScrollDown() {
         m_mainAnmTransformFrame = 39;
         m_replayAnmTransformFrames.rotateLeft(1);
         m_replayAlphas.rotateLeft(1);
-        refreshReplays();
+        refreshReplays(false);
         idle();
+    }
+}
+
+void SceneReplay::stateSelectIn() {
+    m_selectAnmTransformFrame++;
+    hideArrows();
+    if (m_selectAnmTransformFrame == 19) {
+        select();
+    }
+}
+
+void SceneReplay::stateSelectOut() {
+    m_selectAnmTransformFrame--;
+    showArrows(0);
+    if (m_selectAnmTransformFrame == 10) {
+        idle();
+    }
+}
+
+void SceneReplay::stateSelect() {
+    const JUTGamePad::CButton &button = KartGamePad::GamePad(0)->button();
+    if (button.risingEdge() & PAD_BUTTON_A) {
+        GameAudio::Main::Instance()->startSystemSe(SoundID::JA_SE_TR_DECIDE);
+    } else if (button.risingEdge() & PAD_BUTTON_B) {
+        GameAudio::Main::Instance()->startSystemSe(SoundID::JA_SE_TR_CANCEL_LITTLE);
+        selectOut();
+    } else if (button.repeat() & JUTGamePad::PAD_MSTICK_LEFT) {
+        m_clientIndex = m_clientIndex == 0 ? m_clientCount : m_clientIndex - 1;
+        refreshReplays(true);
+        GameAudio::Main::Instance()->startSystemSe(SoundID::JA_SE_TR_CURSOL);
+    } else if (button.repeat() & JUTGamePad::PAD_MSTICK_RIGHT) {
+        m_clientIndex = m_clientIndex == m_clientCount ? 0 : m_clientIndex + 1;
+        refreshReplays(true);
+        GameAudio::Main::Instance()->startSystemSe(SoundID::JA_SE_TR_CURSOL);
     }
 }
 
@@ -382,7 +438,7 @@ void SceneReplay::stateNextScene() {
     SequenceApp::Instance()->setNextScene(m_nextScene);
 }
 
-void SceneReplay::refreshReplays() {
+void SceneReplay::refreshReplays(bool playerColors) {
     Kart2DCommon *kart2DCommon = Kart2DCommon::Instance();
     const ReplayManager *replayManager = ReplayManager::Instance();
     for (u32 i = 0; i < m_replayScreens.count(); i++) {
@@ -404,18 +460,34 @@ void SceneReplay::refreshReplays() {
                 time.mon + 1, time.mday, time.hour, time.min, time.sec);
         kart2DCommon->changeUnicodeTexture(timeText, 23, screen, "Time", false);
         const char *names[MaxRoomKartCount][4] = {};
-        u32 teams[MaxRoomKartCount];
+        u32 colorIndices[MaxRoomKartCount][2];
         for (u32 j = 0, k = 0; j < replay.clients.count(); j++) {
             const ReplayManager::Client &client = replay.clients[j];
             u32 tandemCount = client.players.count() - client.teams.count();
             for (u32 l = 0; l < client.teams.count(); k++, l++) {
-                if (k < tandemCount) {
+                if (l < tandemCount) {
                     names[k][0] = client.players[l / 2 + 0].name.values();
                     names[k][1] = client.players[l / 2 + 1].name.values();
                 } else {
                     names[k][0] = client.players[l + tandemCount].name.values();
                 }
-                teams[k] = client.teams[l];
+                if (playerColors) {
+                    if (replayIndex == m_replayIndex && j == m_clientIndex) {
+                        if (l < tandemCount) {
+                            colorIndices[k][0] = l / 2 + 0;
+                            colorIndices[k][1] = l / 2 + 1;
+                        } else {
+                            colorIndices[k][0] = l + tandemCount;
+                            colorIndices[k][1] = l + tandemCount;
+                        }
+                    } else {
+                        colorIndices[k][0] = 8;
+                        colorIndices[k][1] = 8;
+                    }
+                } else {
+                    colorIndices[k][0] = client.teams[l];
+                    colorIndices[k][1] = client.teams[l];
+                }
             }
         }
         for (u32 j = 0; j < m_playerScreens[i].count(); j++) {
@@ -429,8 +501,17 @@ void SceneReplay::refreshReplays() {
             if (j >= replay.kartCount) {
                 continue;
             }
-            J2DPicture::CornerColors cornerColors = Race2D::GetCornerColors(teams[j]);
             for (u32 k = 0; k < 2; k++) {
+                u32 colorIndex = colorIndices[j][k];
+                J2DPicture::CornerColors cornerColors;
+                if (colorIndex < 8) {
+                    cornerColors = Race2D::GetCornerColors(colorIndex);
+                } else {
+                    cornerColors.topLeft = (GXColor){255, 255, 255, 255};
+                    cornerColors.topRight = (GXColor){85, 85, 85, 255};
+                    cornerColors.bottomLeft = (GXColor){85, 85, 85, 255};
+                    cornerColors.bottomRight = (GXColor){255, 255, 255, 255};
+                }
                 for (u32 l = 0; l < 3; l++) {
                     J2DPicture *picture = screen.search("PName%u%u", k, l)->downcast<J2DPicture>();
                     picture->m_cornerColors = cornerColors;
