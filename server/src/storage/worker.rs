@@ -90,12 +90,15 @@ impl Worker {
                     self.write_player(player).log_err();
                 }
                 self.write_race(&mut batch.race).log_err();
-                self.write_replay(&batch.race).log_err();
 
-                let website_batch =
-                    WebsiteBatch { players: batch.players, race: batch.race.clone() };
+                let players = batch.players.clone();
+                let race = batch.race.clone();
+
+                self.write_replay(batch).log_err();
+
+                let website_batch = WebsiteBatch { players, race: race.clone() };
                 self.website_message_sender.try_send(Message::Batch(website_batch)).log_err();
-                self.webhook_race_sender.try_send(batch.race).log_err();
+                self.webhook_race_sender.try_send(race).log_err();
 
                 continue;
             }
@@ -161,12 +164,12 @@ impl Worker {
         number(&mut self.room_numbers, &mut self.room_number, room_id)
     }
 
-    fn write_replay(&mut self, race: &Race) -> Result<()> {
+    fn write_replay(&mut self, batch: Batch) -> Result<()> {
         self.write(
-            race.number,
+            batch.race.number,
             "gkr",
             |buf| {
-                replay::write(race, buf);
+                replay::write(batch, buf);
                 Ok(())
             },
             "replays",
@@ -177,7 +180,7 @@ impl Worker {
         &mut self,
         stem: impl Display,
         ext: &str,
-        write: impl Fn(&mut Vec<u8>) -> Result<()>,
+        write: impl FnOnce(&mut Vec<u8>) -> Result<()>,
         dir: &str,
     ) -> Result<()> {
         self.buf.clear();

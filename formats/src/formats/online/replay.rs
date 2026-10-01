@@ -22,6 +22,7 @@ pub fn replay_race() -> impl ComplexDataType {
     let course_index: SimpleDataType<u8> = SimpleDataType::new();
     let clients = ArrayType::new(replay_client(), 1, MAX_ROOM_CLIENT_COUNT);
     let time: SimpleDataType<u64> = SimpleDataType::new();
+    let room_code: SimpleDataType<u64> = SimpleDataType::new();
     StructType::new("ReplayRace")
         .with_field("frame_rate", frame_rate())
         .with_field("mode_index", mode_index())
@@ -30,6 +31,9 @@ pub fn replay_race() -> impl ComplexDataType {
         .with_field("course_index", course_index)
         .with_field("clients", clients)
         .with_field("time", time)
+        .with_field("room_type", room_type())
+        .with_field("format", room_option_format())
+        .with_field("room_code", room_code)
 }
 
 pub fn replay_client() -> impl ComplexDataType {

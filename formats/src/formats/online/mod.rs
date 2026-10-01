@@ -92,6 +92,7 @@ pub fn format() -> Format {
         .with_constant(max_time)
         .with_constant(replay_magic)
         .with_type(frame_rate())
+        .with_type(room_type())
         .with_type(mode_index())
         .with_type(room_option_code_type())
         .with_type(room_option_format())

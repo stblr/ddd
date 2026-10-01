@@ -121,6 +121,30 @@ void ReplayManager::setTime(u64 time) {
     m_replay->time = Clock::SecondsToTicks(time - epoch);
 }
 
+bool ReplayManager::isRoomTypeValid(u8 /* roomType */) {
+    return true;
+}
+
+void ReplayManager::setRoomType(u8 roomType) {
+    m_replay->roomType = roomType;
+}
+
+bool ReplayManager::isFormatValid(u8 /* format */) {
+    return true;
+}
+
+void ReplayManager::setFormat(u8 format) {
+    m_replay->format = format;
+}
+
+bool ReplayManager::isRoomCodeValid(u64 /* roomCode */) {
+    return true;
+}
+
+void ReplayManager::setRoomCode(u64 roomCode) {
+    m_replay->roomCode = roomCode;
+}
+
 bool ReplayManager::isPkElementValid(u32 /* i0 */, u8 /* pkElement */) {
     return true;
 }

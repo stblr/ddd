@@ -39,6 +39,7 @@ pub struct Room {
     id: u128,
     code_pair: Option<CodePair>,
     options: ServerRoomOptions,
+    room_state: ServerRoomStateMain,
     pending_clients: HashSet<PublicKey>,
     state: State,
     start: Instant,
@@ -133,6 +134,19 @@ impl Room {
             };
             ServerRoomOptions::BattleOptions(options)
         };
+        let room_state = ServerRoomStateMain {
+            karts: heapless::Vec::new(),
+            spectator_count: 0,
+            mode_index,
+            pack_course_count: pack.courses().len() as u8,
+            pack_hash: *pack.hash(),
+            room_counter: 0,
+            room_code: u64::MAX,
+            spectating_counter: 0,
+            spectating: 0,
+            options: options.clone(),
+            continuing: 0,
+        };
         Self {
             host_pk: host_karts.first().map(Kart::client_pk).copied(),
             karts: host_karts.into_iter().collect(),
@@ -145,6 +159,7 @@ impl Room {
             id,
             code_pair,
             options,
+            room_state,
             pending_clients: HashSet::new(),
             state: State::new_room(None),
             start: Instant::now(),
@@ -261,6 +276,10 @@ impl Room {
                 }
             }
         }
+    }
+
+    pub fn room_state(&self, client_pk: &PublicKey) -> ServerRoomStateMain {
+        room_state(&self.karts, self.room_state.clone(), Some(client_pk))
     }
 
     pub const fn has_team_state(&self) -> bool {
@@ -1033,6 +1052,9 @@ impl Room {
                     *batch = Some(Batch {
                         clients: LinearMap::new(),
                         inputs: heapless::Vec::new(),
+                        room_state: room_state(&self.karts, self.room_state.clone(), None),
+                        team_state: team_state.clone(),
+                        poll_state: poll_state.clone(),
                         players,
                         race,
                     });
@@ -1093,8 +1115,42 @@ impl Room {
             _ => (),
         }
 
+        self.room_state.karts = self
+            .karts
+            .iter()
+            .map(|kart| {
+                let players = kart.players().iter().map(|player| player.player.clone()).collect();
+                ServerKart {
+                    local: 0,
+                    players,
+                    mmr: kart.mmr(self.mode_index()),
+                    points: kart.points,
+                }
+            })
+            .collect();
+        self.room_state.spectator_count = self.spectator_count as u16;
+        self.room_state.room_code = self.code().unwrap_or(u64::MAX);
+        self.room_state.options = self.options.clone();
+        self.room_state.continuing = self.has_room_lock().into();
+
         Ok(())
     }
+}
+
+fn room_state(
+    karts: &[Kart],
+    mut room_state: ServerRoomStateMain,
+    client_pk: Option<&PublicKey>,
+) -> ServerRoomStateMain {
+    room_state.karts = karts
+        .iter()
+        .map(|kart| {
+            let local = (Some(kart.client_pk()) == client_pk).into();
+            let players = kart.players().iter().map(|player| player.player.clone()).collect();
+            ServerKart { local, players, mmr: kart.mmr(room_state.mode_index), points: kart.points }
+        })
+        .collect();
+    room_state
 }
 
 impl Drop for Room {

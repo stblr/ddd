@@ -8,6 +8,7 @@ public:
     u32 colorIndex(u32 kartIndex) const;
 
     void reset();
+    void setLocalKarts();
 
     static OnlineInfo &Instance();
 

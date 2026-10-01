@@ -10,6 +10,9 @@ use crate::storage::race::Race;
 pub struct Batch {
     pub clients: LinearMap<PublicKey, RaceClient, MAX_ROOM_CLIENT_COUNT>,
     pub inputs: Vec<Inputs, MAX_ROOM_KART_COUNT>,
+    pub room_state: ServerRoomStateMain,
+    pub team_state: Option<ServerTeamStateMain>,
+    pub poll_state: ServerPollStateReady,
     pub players: Vec<Player, MAX_ROOM_PLAYER_COUNT>,
     pub race: Race,
 }

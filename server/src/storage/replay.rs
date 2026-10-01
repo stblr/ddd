@@ -1,9 +1,11 @@
 use std::time::SystemTime;
 
 use crate::formats::online::*;
-use crate::storage::race::Race;
+use crate::storage::batch::Batch;
 
-pub fn write(race: &Race, buf: &mut Vec<u8>) {
+pub fn write(batch: Batch, buf: &mut Vec<u8>) {
+    let Batch { room_state, race, .. } = batch;
+
     let mut message = [0u8; BUFFER_SIZE as usize];
 
     let replay = Replay { magic: REPLAY_MAGIC, protocol_version: PROTOCOL_VERSION, reserved: 0 };
@@ -45,8 +47,16 @@ pub fn write(race: &Race, buf: &mut Vec<u8>) {
         course_index: race.karts[race.selected_kart_index as usize].course_index,
         clients,
         time,
+        room_type: if race.host_pk.is_none() { RoomType::Worldwide } else { RoomType::Personal },
+        format: race.format,
+        room_code: room_state.room_code,
     };
     write_message(buf, &mut message, &replay_race, ReplayRace::write);
+
+    let server_room_state = ServerRoomState::Main(room_state);
+    let room = ServerStateRoom { server_room_state };
+    let server_state = ServerState::Room(room);
+    write_message(buf, &mut message, &server_state, ServerState::write);
 }
 
 fn write_message<T>(

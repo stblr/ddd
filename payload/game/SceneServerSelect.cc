@@ -98,29 +98,8 @@ void SceneServerSelect::init() {
 
     const SequenceInfo &sequenceInfo = SequenceInfo::Instance();
     OnlineInfo &onlineInfo = OnlineInfo::Instance();
+    onlineInfo.setLocalKarts();
     u32 playerCount = sequenceInfo.m_padCount;
-    u32 tandemCount = playerCount - sequenceInfo.m_statusCount;
-    for (u32 i = 0; i < sequenceInfo.m_statusCount; i++) {
-        Kart &kart = onlineInfo.m_localKarts[i];
-        kart.local = true;
-        if (i < tandemCount) {
-            kart.playerCount = 2;
-            kart.players[0].index = i / 2 + 0;
-            kart.players[1].index = i / 2 + 1;
-        } else {
-            kart.playerCount = 1;
-            kart.players[0].index = i + tandemCount;
-        }
-        for (u32 j = 0; j < kart.players.count(); j++) {
-            Player &player = kart.players[j];
-            if (j < kart.playerCount) {
-                player.name = onlineInfo.m_names[player.index];
-            } else {
-                player.index = UINT8_MAX;
-                player.name = "   ";
-            }
-        }
-    }
 
     m_serverCount = 0;
     for (u32 i = 0; i < m_descs.count(); i++) {

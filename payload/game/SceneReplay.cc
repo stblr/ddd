@@ -6,9 +6,11 @@
 #include "game/MenuTitleLine.hh"
 #include "game/Modes.hh"
 #include "game/OnlineBackground.hh"
+#include "game/OnlineInfo.hh"
 #include "game/Race2D.hh"
 #include "game/SceneFactory.hh"
 #include "game/SequenceApp.hh"
+#include "game/SequenceInfo.hh"
 #include "game/System.hh"
 
 extern "C" {
@@ -415,7 +417,33 @@ void SceneReplay::stateSelectOut() {
 void SceneReplay::stateSelect() {
     const JUTGamePad::CButton &button = KartGamePad::GamePad(0)->button();
     if (button.risingEdge() & PAD_BUTTON_A) {
+        m_nextScene = SceneType::PersonalRoom;
         GameAudio::Main::Instance()->startSystemSe(SoundID::JA_SE_TR_DECIDE);
+        const ReplayManager *replayManager = ReplayManager::Instance();
+        const ReplayManager::Replay &replay = replayManager->replay(m_replayIndex);
+        const ReplayManager::Client *client = nullptr;
+        if (m_clientIndex < replay.clients.count()) {
+            client = &replay.clients[m_clientIndex];
+        }
+        SequenceInfo &sequenceInfo = SequenceInfo::Instance();
+        sequenceInfo.m_padCount = client ? client->players.count() : 1;
+        sequenceInfo.m_statusCount = client ? client->teams.count() : 1;
+        OnlineInfo &onlineInfo = OnlineInfo::Instance();
+        if (client) {
+            for (u32 i = 0; i < client->players.count(); i++) {
+                onlineInfo.m_names[i] = client->players[i].name;
+            }
+        } else {
+            onlineInfo.m_names[0] = "   ";
+        }
+        onlineInfo.setLocalKarts();
+        onlineInfo.m_roomType = replay.roomType;
+        onlineInfo.m_modeIndex = replay.modeIndex;
+        onlineInfo.m_format = replay.format;
+        onlineInfo.m_isHost = replay.roomType == RoomType::Personal && m_clientIndex == 0;
+        onlineInfo.m_roomCounter = 0;
+        onlineInfo.m_roomCode = replay.roomCode;
+        slideOut();
     } else if (button.risingEdge() & PAD_BUTTON_B) {
         GameAudio::Main::Instance()->startSystemSe(SoundID::JA_SE_TR_CANCEL_LITTLE);
         selectOut();

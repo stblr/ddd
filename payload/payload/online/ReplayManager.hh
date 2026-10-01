@@ -21,7 +21,7 @@ public:
 
     struct Client {
         Ring<Player, MaxClientPlayerCount> players;
-        Ring<u8, MaxRoomKartCount> teams;
+        Ring<u8, MaxClientKartCount> teams;
     };
 
     struct Replay {
@@ -31,6 +31,9 @@ public:
         u8 courseIndex;
         Ring<Client, MaxRoomClientCount> clients;
         s64 time;
+        u8 roomType;
+        u8 format;
+        u64 roomCode;
         u8 kartCount;
         bool isRace;
         u8 packIndex;
@@ -63,6 +66,12 @@ public:
     ReplayClientReader *clientsElementReader(u32 i0);
     bool isTimeValid(u64 time);
     void setTime(u64 time);
+    bool isRoomTypeValid(u8 roomType);
+    void setRoomType(u8 roomType);
+    bool isFormatValid(u8 format);
+    void setFormat(u8 format);
+    bool isRoomCodeValid(u64 roomCode);
+    void setRoomCode(u64 roomCode);
 
     bool isPkElementValid(u32 i0, u8 pkElement);
     void setPkElement(u32 i0, u8 pkElement);
