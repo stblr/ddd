@@ -1,0 +1,30 @@
+---
+- name: Deploy
+  hosts: servers
+  become: true
+  tasks:
+    - name: Update all packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_only: true
+      notify:
+        - Reboot
+    - name: Add UDP port 3549 to firewall configuration
+      ansible.posix.firewalld:
+        port: 3549/udp
+        permanent: true
+        state: enabled
+    - name: Copy ddd-server RPM
+      ansible.builtin.copy:
+        src: ../../build/rpm/aarch64/RPMS/ddd-server.aarch64.rpm
+        dest: /tmp
+        mode: '644'
+    - name: Install ddd-server package from RPM
+      ansible.builtin.dnf:
+        name: /tmp/ddd-server.aarch64.rpm
+        state: present
+        disable_gpg_check: true
+  handlers:
+    - name: Reboot
+      ansible.builtin.reboot:
