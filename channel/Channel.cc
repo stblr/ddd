@@ -78,6 +78,7 @@ Channel::PayloadEntryFunc Channel::Run(Context *context) {
     INFO("Double Dash Deluxe Channel [%s]", Version);
 
     if (!Platform::IsGameCube()) {
+        INFO("You should not see this!");
         if (iosVersion >> 16 != 58 && iosVersion >> 16 != 59) {
             ERROR("Double Dash Deluxe needs IOS58 (or IOS59).");
             ERROR("Please perform a Wii System Update or use the IOS58 Installer to install");
@@ -90,9 +91,12 @@ Channel::PayloadEntryFunc Channel::Run(Context *context) {
 
         IOS::Resource::Init();
     }
+    INFO("Initializing clock...");
     Clock::Init();
+    INFO("Initialized clock.");
 
     if (Platform::IsDolphin()) {
+        INFO("You should also not see this!");
         DolphinVersion dolphinVersion;
         DolphinVersion minimumDolphinVersion = {5, 0, 20189};
         if (!Platform::GetDolphinVersion(dolphinVersion) ||
@@ -114,6 +118,7 @@ Channel::PayloadEntryFunc Channel::Run(Context *context) {
     // Reset the DSP: libogc apps like the HBC cannot initialize it properly, but the SDK can.
     aicr = 0;
 
+    INFO("Initializing storage...");
     Storage::Init();
     if (!Platform::IsGameCube()) {
         USBStorage::Init();
@@ -121,6 +126,7 @@ Channel::PayloadEntryFunc Channel::Run(Context *context) {
         WiiSDStorage::Init();
     }
     VirtualDI::Init();
+    INFO("Initialized storage.");
 
     RunApploader(context);
 
@@ -258,11 +264,13 @@ bool Channel::RunApploaderFromVirtualDI() {
     bool enableEXISD = true;
     bool enableUSB = !Platform::IsGameCube() && !Platform::IsDolphin();
     bool enableWiiSD = !Platform::IsGameCube();
+    INFO("Trying to run from virtual disc %u %u %u", enableEXISD, enableUSB, enableWiiSD);
     return RunApploaderFromVirtualDI(enableEXISD, enableUSB, enableWiiSD);
 }
 
 bool Channel::RunApploaderFromVirtualDI(bool enableEXISD, bool enableUSB, bool enableWiiSD) {
     if (enableEXISD) {
+        INFO("EXI SD");
         EXISDStorage exiSDStorage0(0);
         EXISDStorage exiSDStorage1(1);
         EXISDStorage exiSDStorage2(2);
@@ -272,21 +280,25 @@ bool Channel::RunApploaderFromVirtualDI(bool enableEXISD, bool enableUSB, bool e
     }
 
     if (enableUSB) {
+        INFO("USB");
         USB::Handle usbHandle;
 
         return RunApploaderFromVirtualDI(enableEXISD, false, enableWiiSD);
     }
 
     if (enableWiiSD) {
+        INFO("Wii SD");
         WiiSDStorage wiiSDStorage;
 
         return RunApploaderFromVirtualDI(enableEXISD, enableUSB, false);
     }
 
+    INFO("Mounting...");
     if (!VirtualDI::Mount()) {
         return false;
     }
 
+    INFO("Running...");
     if (!Apploader::Run(VirtualDI::Read)) {
         return false;
     }
