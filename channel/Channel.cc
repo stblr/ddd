@@ -229,7 +229,7 @@ void Channel::RunApploader(Context *context) {
                 ERROR("This is not Mario Kart: Double Dash!! (game id %.4s).", gameID);
             }
             while (DI::ReadDiscID()) {
-                Clock::WaitMilliseconds(100);
+                Clock::WaitMilliseconds(5000);
                 if (RunApploaderFromVirtualDI()) {
                     context->hasVirtualDI = true;
                     return;
@@ -270,10 +270,13 @@ bool Channel::RunApploaderFromVirtualDI() {
 
 bool Channel::RunApploaderFromVirtualDI(bool enableEXISD, bool enableUSB, bool enableWiiSD) {
     if (enableEXISD) {
-        INFO("EXI SD");
+        INFO("EXI SD A");
         EXISDStorage exiSDStorage0(0);
+        INFO("EXI SD B");
         EXISDStorage exiSDStorage1(1);
+        INFO("EXI SD SP1");
         EXISDStorage exiSDStorage2(2);
+        INFO("EXI SD SP2");
         EXISDStorage exiSDStorage3(3);
 
         return RunApploaderFromVirtualDI(false, enableUSB, enableWiiSD);

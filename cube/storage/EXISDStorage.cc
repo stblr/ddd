@@ -44,19 +44,19 @@ bool EXISDStorage::sync() {
 void EXISDStorage::pollAdd() {
     u32 id;
     if (!EXI::GetID(m_channel, m_device, id)) {
-        TRACE("Failed to get ID");
+        INFO("Failed to get ID");
         return;
     }
 
     if (id != 0xffffffff) {
-        TRACE("Not an SD card");
+        INFO("Not an SD card");
         return;
     }
 
     {
         EXI::Device device(m_channel, 32, 5, &m_wasDetached);
         if (!device.ok()) {
-            DEBUG("Failed to select device");
+            INFO("Failed to select device");
             return;
         }
         for (u32 i = 0; i < 74; i++) {
@@ -74,7 +74,7 @@ void EXISDStorage::pollAdd() {
     {
         EXI::Device device(m_channel, m_device, 5, &m_wasDetached);
         if (!device.ok()) {
-            DEBUG("Failed to select device");
+            INFO("Failed to select device");
             return;
         }
 
@@ -82,29 +82,29 @@ void EXISDStorage::pollAdd() {
         u8 checkPattern = 0xaa;
         argument = vhs << 8 | checkPattern << 0;
         if (!sendCommand(device, Command::SendIfCond, argument)) {
-            DEBUG("Failed to send CMD8");
+            INFO("Failed to send CMD8");
             return;
         }
 
         u8 r1, commandVersion, vhsEcho, checkPatternEcho;
         if (!recvR7(device, r1, commandVersion, vhsEcho, checkPatternEcho)) {
-            DEBUG("Failed to receive R7 for CMD8");
+            INFO("Failed to receive R7 for CMD8");
             return;
         }
 
         if (r1 & ~(1 << 2 | 1 << 0)) {
-            DEBUG("CMD8 error");
+            INFO("CMD8 error");
             return;
         }
 
         isV2 = !(r1 & 1 << 2);
         if (isV2) {
             if (vhsEcho != vhs) {
-                DEBUG("Mismatched VHS");
+                INFO("Mismatched VHS");
                 return;
             }
             if (checkPatternEcho != checkPattern) {
-                DEBUG("Mismatched check pattern");
+                INFO("Mismatched check pattern");
                 return;
             }
         }
@@ -121,40 +121,40 @@ void EXISDStorage::pollAdd() {
     do {
         EXI::Device device(m_channel, m_device, 5, &m_wasDetached);
         if (!device.ok()) {
-            DEBUG("Failed to select device");
+            INFO("Failed to select device");
             return;
         }
 
         if (isMMC) {
             argument = 1 << 30;
             if (!sendCommand(device, Command::SendOpCond, argument)) {
-                DEBUG("Failed to send CMD1");
+                INFO("Failed to send CMD1");
                 return;
             }
 
             if (!recvR1(device, r1)) {
-                DEBUG("Failed to receive R1 for CMD1");
+                INFO("Failed to receive R1 for CMD1");
                 return;
             }
 
             if (r1 & ~(r1 << 0)) {
-                DEBUG("CMD1 error");
+                INFO("CMD1 error");
                 return;
             }
         } else {
             argument = 0;
             if (!sendCommand(device, Command::AppCmd, argument)) {
-                DEBUG("Failed to send CMD55");
+                INFO("Failed to send CMD55");
                 return;
             }
 
             if (!recvR1(device, r1)) {
-                DEBUG("Failed to receive R1 for CMD55");
+                INFO("Failed to receive R1 for CMD55");
                 return;
             }
 
             if (r1 & ~(!isV2 << 2 | 1 << 0)) {
-                DEBUG("CMD55 error");
+                INFO("CMD55 error");
                 return;
             }
 
@@ -165,17 +165,17 @@ void EXISDStorage::pollAdd() {
 
             argument = 1 << 30;
             if (!sendCommand(device, AppCommand::SDSendOpCond, argument)) {
-                DEBUG("Failed to send ACMD41");
+                INFO("Failed to send ACMD41");
                 return;
             }
 
             if (!recvR1(device, r1)) {
-                DEBUG("Failed to receive R1 for ACMD41");
+                INFO("Failed to receive R1 for ACMD41");
                 return;
             }
 
             if (r1 & ~(1 << 0)) {
-                DEBUG("ACMD41 error");
+                INFO("ACMD41 error");
                 return;
             }
         }
@@ -186,7 +186,7 @@ void EXISDStorage::pollAdd() {
     } while (Clock::GetMonotonicTicks() < start + Clock::SecondsToTicks(2));
 
     if (r1 & 1 << 0) {
-        DEBUG("Timed out");
+        INFO("Timed out");
         return;
     }
 
@@ -194,24 +194,24 @@ void EXISDStorage::pollAdd() {
     if (isV2) {
         EXI::Device device(m_channel, m_device, 5, &m_wasDetached);
         if (!device.ok()) {
-            DEBUG("Failed to select device");
+            INFO("Failed to select device");
             return;
         }
 
         argument = 0;
         if (!sendCommand(device, Command::ReadOCR, argument)) {
-            DEBUG("Failed to send CMD58");
+            INFO("Failed to send CMD58");
             return;
         }
 
         u32 ocr;
         if (!recvR3(device, r1, ocr)) {
-            DEBUG("Failed to receive R3 for CMD58");
+            INFO("Failed to receive R3 for CMD58");
             return;
         }
 
         if (r1) {
-            DEBUG("CMD58 error");
+            INFO("CMD58 error");
             return;
         }
 
@@ -252,7 +252,7 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
     EXI::Device device;
     if (m_channel != 0) {
         if (!device.acquire(m_channel, m_device, 5, &m_wasDetached)) {
-            DEBUG("Failed to select device");
+            INFO("Failed to select device");
             return false;
         }
 
@@ -266,7 +266,7 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
             sector++, buffer = static_cast<u8 *>(buffer) + SectorSize) {
         if (m_channel == 0) {
             if (!device.acquire(m_channel, m_device, 5, &m_wasDetached)) {
-                DEBUG("Failed to select device");
+                INFO("Failed to select device");
                 return false;
             }
 
@@ -279,25 +279,25 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
         u8 token;
         do {
             if (!device.immRead(&token, sizeof(token))) {
-                DEBUG("Failed to read token");
+                INFO("Failed to read token");
                 return false;
             }
         } while (token != 0xfe);
 
         if (!device.immRead(buffer, SectorSize)) {
-            DEBUG("Failed to read sector");
+            INFO("Failed to read sector");
             return false;
         }
 
         Array<u8, 2> crc16;
         if (!device.immRead(crc16.values(), crc16.count())) {
-            DEBUG("Failed to read CRC16");
+            INFO("Failed to read CRC16");
             return false;
         }
 
         if (ComputeCRC16(static_cast<u8 *>(buffer), SectorSize) !=
                 Bytes::ReadBE<u16>(crc16.values(), 0)) {
-            DEBUG("Mismatched CRC16");
+            INFO("Mismatched CRC16");
             return false;
         }
 
@@ -311,24 +311,24 @@ bool EXISDStorage::transferRead(u32 firstSector, u32 sectorCount, void *buffer) 
     }
 
     if (!sendCommand(device, Command::StopTransmission, 0)) {
-        DEBUG("Failed to send CMD12");
+        INFO("Failed to send CMD12");
         return false;
     }
 
     u8 dummy;
     if (!device.immRead(&dummy, sizeof(dummy))) {
-        DEBUG("Failed to read dummy for CMD12");
+        INFO("Failed to read dummy for CMD12");
         return false;
     }
 
     u8 r1;
     if (!recvR1(device, r1)) {
-        DEBUG("Failed to receive R1 for CMD12");
+        INFO("Failed to receive R1 for CMD12");
         return false;
     }
 
     if (r1) {
-        DEBUG("CMD12 error");
+        INFO("CMD12 error");
         return false;
     }
 
@@ -340,7 +340,7 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
             sector++, buffer = static_cast<u8 *>(buffer) + SectorSize) {
         EXI::Device device(m_channel, m_device, 5, &m_wasDetached);
         if (!device.ok()) {
-            DEBUG("Failed to select device");
+            INFO("Failed to select device");
             return false;
         }
 
@@ -351,12 +351,12 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
 
         u8 token = 0xfe;
         if (!device.immWrite(&token, sizeof(token))) {
-            DEBUG("Failed to write token");
+            INFO("Failed to write token");
             return false;
         }
 
         if (!device.dmaWrite(buffer, SectorSize)) {
-            DEBUG("Failed to write sector");
+            INFO("Failed to write sector");
             return false;
         }
 
@@ -364,17 +364,17 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
         Bytes::WriteBE<u16>(crc16.values(), 0,
                 ComputeCRC16(static_cast<const u8 *>(buffer), SectorSize));
         if (!device.immWrite(crc16.values(), crc16.count())) {
-            DEBUG("Failed to write CRC16");
+            INFO("Failed to write CRC16");
             return false;
         }
 
         if (!device.immRead(&token, sizeof(token))) {
-            DEBUG("Failed to read token");
+            INFO("Failed to read token");
             return false;
         }
 
         if ((token & 0x1f) != 0x05) {
-            DEBUG("Invalid token");
+            INFO("Invalid token");
             return false;
         }
 
@@ -389,7 +389,7 @@ bool EXISDStorage::transferWrite(u32 firstSector, u32 sectorCount, void *buffer)
 bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buffer */) {
     EXI::Device device(m_channel, m_device, 5, &m_wasDetached);
     if (!device.ok()) {
-        DEBUG("Failed to select device");
+        INFO("Failed to select device");
         return false;
     }
 
@@ -413,7 +413,7 @@ bool EXISDStorage::transferErase(u32 firstSector, u32 sectorCount, void * /* buf
 bool EXISDStorage::sendCommandAndRecvR1(u8 command, u32 argument, u8 r1Mask) {
     EXI::Device device(m_channel, m_device, 5, &m_wasDetached);
     if (!device.ok()) {
-        DEBUG("Failed to select device");
+        INFO("Failed to select device");
         return false;
     }
 
@@ -422,18 +422,18 @@ bool EXISDStorage::sendCommandAndRecvR1(u8 command, u32 argument, u8 r1Mask) {
 
 bool EXISDStorage::sendCommandAndRecvR1(EXI::Device &device, u8 command, u32 argument, u8 r1Mask) {
     if (!sendCommand(device, command, argument)) {
-        DEBUG("Failed to send CMD%u", command);
+        INFO("Failed to send CMD%u", command);
         return false;
     }
 
     u8 r1;
     if (!recvR1(device, r1)) {
-        DEBUG("Failed to receive R1 for CMD%u", command);
+        INFO("Failed to receive R1 for CMD%u", command);
         return false;
     }
 
     if (r1 & r1Mask) {
-        DEBUG("CMD%u error %02x", command, r1);
+        INFO("CMD%u error %02x", command, r1);
         return false;
     }
 
@@ -499,7 +499,7 @@ bool EXISDStorage::waitReady(EXI::Device &device) {
     while (true) {
         u8 token;
         if (!device.immRead(&token, sizeof(token))) {
-            DEBUG("Failed to read token");
+            INFO("Failed to read token");
             return false;
         }
 
@@ -509,7 +509,7 @@ bool EXISDStorage::waitReady(EXI::Device &device) {
 
         device.release();
         if (!device.acquire(m_channel, m_device, 5, &m_wasDetached)) {
-            DEBUG("Failed to select device");
+            INFO("Failed to select device");
             return false;
         }
     }
