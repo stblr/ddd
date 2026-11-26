@@ -93,7 +93,7 @@ void EXISDStorage::pollAdd() {
         }
 
         if (r1 & ~(1 << 2 | 1 << 0)) {
-            INFO("CMD8 error");
+            INFO("CMD8 error %02x", r1);
             return;
         }
 
