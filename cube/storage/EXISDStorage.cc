@@ -92,8 +92,8 @@ void EXISDStorage::pollAdd() {
             return;
         }
 
-        if (r1 & ~(1 << 2 | 1 << 0)) {
-            INFO("CMD8 error %02x", r1);
+        if (!(r1 & 1 << 0)) {
+            INFO("Not in idle state");
             return;
         }
 
